@@ -1,47 +1,147 @@
-# Post-Genesis Track Redistribution in the Western North Pacific
+# Western North Pacific tropical cyclone track redistribution
 
-This repository provides the analysis and figure-generation code for the companion manuscript:
+Analysis code for **Life-Cycle Redistribution of Western North Pacific Tropical
+Cyclone Tracks and a Poleward Shift in Landfall Latitude: Cross-Agency Evidence
+From 1966–2025**.
 
-> Huang, D., and Y. Yue. *Post-Genesis Track Redistribution and Poleward Landfall-Latitude Shift in the Western North Pacific: Cross-Agency Evidence from 1966–2025.*
+This study examines changes in tropical cyclone track composition and landfall
+latitude over the western North Pacific. It compares the USA, Japan Meteorological
+Agency (JMA), China Meteorological Administration (CMA), and Hong Kong Observatory
+(HKO) records, separates genesis-distribution and conditional-track-field
+contributions, and evaluates circulation, translation speed and upper-ocean
+exposure along the tracks. Relative track changes are examined alongside absolute
+passage, recurvature and landfall counts.
 
-The associated derived data and regional monthly ORAS5 OHC300 subset are archived on Zenodo at [10.5281/zenodo.21886778](https://doi.org/10.5281/zenodo.21886778).
+## Study scope
 
-## Repository contents
+- The main comparison is **1966–1995 versus 1996–2025**. The relative
+  track-composition domain is **100–180°E, 0–40°N**.
+- Native-record comparisons retain each agency's selection criteria. The
+  four-agency common sample contains **1,465 storms**.
+- HKO is included throughout the 1966–2025 agency comparisons, with its official
+  2025 post-analysis reports supplementing the IBTrACS record.
+- The 1945-start comparison and 106-configuration robustness matrix retain their
+  three-agency scope; HKO records begin in 1961.
 
-- `config/`: analysis domains, periods, thresholds, random seed, and environment specification.
-- `core/`: shared download, preprocessing, track-table, and landfall-processing code.
-- `paper2_dynamic/`: track, steering-flow, circulation, and translation-speed analyses.
-- `wnp_tc_analysis/src/` and `wnp_tc_analysis/scripts/`: cross-agency, sensitivity, Shapley, circulation, landfall, and figure code.
-- `wnp_tc_analysis/tests/` and `core/tests/`: tests for the shared and manuscript-specific analysis code.
-- `Verify/`: independently structured verification code and method specifications for pathway closure, signed projection, counterfactual steering, native-stage landfall, and OHC300 exposure.
-- `metadata/`: external-input registry and data-source notes.
+## Main analyses
 
-Original third-party datasets remain available from their providers. Redistributable derived tables, figures, and the regional ORAS5 OHC300 subset are included in the Zenodo record.
+| Analysis | Main code |
+| --- | --- |
+| Cross-agency track fields, annual redistribution indices, common storms and sensitivities | `analysis/tracks/agency_comparison.py` |
+| Genesis-distribution and conditional-track-field decomposition | `analysis/tracks/genesis_conditioned_decomposition.py`, `analysis/tracks/genesis_shapley.py` |
+| Absolute passage, sustained recurvature and operational genesis | `analysis/tracks/track_baseline_diagnostics.py` |
+| Landfall latitude, named-coast grouping and counting-rule sensitivities | `analysis/tracks/agency_comparison.py`, `analysis/landfall/hko_landfalls.py` |
+| Circulation associations, deep/shallow steering and storm-sampling decomposition | `analysis/circulation/steering_layer_diagnostics.py`, `analysis/circulation/steering_sampling_decomposition.py`, `analysis/circulation/storm_time_sampling.py` |
+| Trajectory-model calibration, baseline evaluation and finite sensitivities | `analysis/models/bam_primary_fit.py`, `analysis/models/bam_sensitivity.py` |
+| Cross-agency translation-speed decomposition | `analysis/tracks/agency_comparison.py`, `analysis/tracks/speed_decomposition.py` |
+| OHC300 and D26 exposure decomposition | `analysis/ocean/`, `analysis/ocean/d26_exposure.py` |
+| Main and supplementary figures | `analysis/figures/main_figures.py`, `analysis/figures/si_four_agency_figures.py`, `analysis/figures/diagnostic_figures.py` |
 
-## Environment
+Version 1.2 includes the four-agency comparison, absolute-count diagnostics,
+trajectory-model and steering-layer sensitivities, and the parallel D26 analysis.
+Statistical decompositions quantify contributions to observed differences;
+circulation associations and model sensitivities are interpreted within their
+respective observational and model assumptions.
 
-The analysis environment uses Python 3.12 with the fixed random seed `202406`. Create the environment with:
+## Code and data
+
+The source code is organized by scientific topic, with shared utilities and
+numerical tests. The accompanying science archive supplies the same source code,
+scientific configurations, observations and regional input subsets, numerical
+results, and seven main and nineteen supplementary figures.
+
+| Location | Contents |
+| --- | --- |
+| `analysis/tracks/` | Track composition, genesis, speed and pathway analyses |
+| `analysis/landfall/` | Geometric crossings and coastal classification |
+| `analysis/circulation/` | Circulation fields, steering and storm sampling |
+| `analysis/ocean/` | OHC300 and D26 matching and exposure decomposition |
+| `analysis/models/` | Trajectory-model calibration and sensitivity |
+| `analysis/figures/` | Main and supplementary plotting |
+| `analysis/shared/`, `core/` | Catalogue readers, statistics and shared utilities |
+| `validation/tests/` | Numerical tests |
+| `config/` | Scientific parameters |
+| `data/` | Observations, processed tracks and regional fields; OHC300/D26 are in `data/derived/` |
+| `results/` | All numerical outputs, grouped by scientific topic |
+| `figures/` | Main and supplementary figures |
+| `docs/` | Data sources, input methods and usage |
+
+The included OHC300 and D26 regional fields cover 1966–2025. Three large ERA5
+pressure-level and steering fields are obtained or regenerated separately before
+recomputing fine-grid circulation, trajectory-model and storm-sampling analyses.
+[docs/ERA5_INPUTS.md](docs/ERA5_INPUTS.md) specifies their source, variables, period, region,
+grid, levels and processing methods; [docs/EXTERNAL_INPUTS.json](docs/EXTERNAL_INPUTS.json)
+records the original file identifiers. Processed circulation arrays and results
+are included in the science archive.
+
+## Basic use
+
+Use **Python 3.12**. Extract the science archive and run commands from its root;
+it already contains the same Python sources as the source-only ZIP. Install the
+dependencies listed in [requirements.txt](requirements.txt):
 
 ```bash
-conda env create -f config/environment.yml
-conda activate tc-wnp
+python -m pip install -r requirements.txt
 ```
 
-The core validation suite can then be run from the repository root:
+The main settings are in `config/config.yaml`. Agency resampling settings are in
+`config/agency_validation.yaml`; the ocean-exposure and pathway modules have
+their own configuration files. Stage-specific seeds and resampling counts in the
+source also form part of the analysis specification.
+
+Use `python -m analysis --help` to list the analysis entry points.
+All numerical outputs are organized under `results/`: `tracks/`, `agency_comparison/`,
+`genesis/`, `landfall/`, `circulation/`, `models/`, `ocean/` and `pathways/`.
+Diagnostic summaries are written to `results/diagnostics/`; pathway checks use
+`results/pathways/diagnostics/`.
+
+Examples using the distributed inputs:
 
 ```bash
-python -m pytest core/tests wnp_tc_analysis/tests \
-  Verify/ohc_path_exposure/tests Verify/pathway_closure/tests
+# Cross-agency core statistics
+python -B -m analysis tracks --execute core
+
+# Landfall statistics from the included geometric crossing events
+python -B -m analysis landfall --execute
+
+# Main Figures 2 and 6
+python -B -m analysis figures --execute 2 6
+
+# Match tracks to the included regional OHC fields
+python -B -m analysis ocean --phase prepare --use-prepared-ocean --execute --overwrite
+
+# OHC decomposition and block-bootstrap intervals
+python -B -m analysis ocean --phase analyze --execute --overwrite
 ```
 
-Full regeneration requires the external inputs listed in `metadata/external_inputs.csv`. No credentials or API keys are included. Copernicus users must configure their own CDS credentials.
+These commands write tables or figures. Use a separate extraction to retain the
+distributed results. See [docs/RUNNING.md](docs/RUNNING.md) for parameter locations and
+input requirements. [requirements-download.txt](requirements-download.txt) lists
+optional acquisition dependencies; Copernicus access requires a CDS account and
+acceptance of the dataset terms.
 
 ## Data sources
 
-The analysis uses IBTrACS v04r01, ERA5, ORAS5, ONI, PDO, and GSHHG. Source locations, identifiers, roles, and redistribution boundaries are documented in `metadata/DATA_SOURCES.md` and `metadata/external_inputs.csv`.
+- **IBTrACS v04r01:** [NOAA NCEI data record](https://doi.org/10.25921/82ty-9e16).
+- **HKO 2025:** [Official post-analysis best-track data](https://data.weather.gov.hk/weatherAPI/hko_data/tc/HKO2025BST.csv).
+- **ERA5 monthly pressure-level fields:** [C3S data record](https://doi.org/10.24381/cds.6860a573).
+- **ORAS5 OHC300 and D26:** Copernicus Climate Change Service (2021).
+  *ORAS5 global ocean reanalysis monthly data from 1958 to present* [Data set].
+  ECMWF. [Dataset DOI](https://doi.org/10.24381/cds.67e8eeb7).
 
-## Citation and license
+The science archive's `docs/SOURCES.md` also identifies the ONI/PDO indices, GSHHG
+shorelines and relief-map inputs.
 
-Please use `CITATION.cff` when citing the software and associated data package. Its DOI is [10.5281/zenodo.21886778](https://doi.org/10.5281/zenodo.21886778).
+## Citation and licence
 
-The project code is licensed under the MIT License. External datasets retain their providers' terms.
+Please cite the software using [CITATION.cff](CITATION.cff), and cite the original
+data products used in your analysis.
+
+Huang, D., & Yue, Y. (2026). *Analysis code for post-genesis tropical-cyclone track
+redistribution in the western North Pacific* (Version 1.2) [Software].
+[Source repository](https://github.com/Museman01/wnp-tc-track-redistribution).
+
+Software is released under the [MIT License](LICENSE). Project-generated
+analytical tables and original figures use **CC BY 4.0**. Third-party
+observations, reanalysis and geographic inputs retain their providers' terms;
+these are described with the science archive and accompanying data notices.

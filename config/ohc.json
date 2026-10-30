@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "study": {
+    "start_year": 1966,
+    "end_year": 2025,
+    "primary_comparison": {
+      "label": "1966_1995_vs_1996_2025",
+      "period1": [
+        1966,
+        1995
+      ],
+      "period2": [
+        1996,
+        2025
+      ]
+    },
+    "sensitivity_comparisons": [
+      {
+        "label": "1982_2003_vs_2004_2025",
+        "period1": [
+          1982,
+          2003
+        ],
+        "period2": [
+          2004,
+          2025
+        ]
+      }
+    ]
+  },
+  "ohc": {
+    "consolidated_dir": "data/raw/oras5/consolidated/ocean_heat_content_for_the_upper_300m",
+    "operational_dir": "data/raw/oras5/operational/ocean_heat_content_for_the_upper_300m",
+    "prepared_dir": "data/derived/ohc300",
+    "native_variable": "sohtc300",
+    "canonical_variable": "ohc300",
+    "canonical_units": "J m-2",
+    "coordinate_equality_atol_degrees": 5e-05,
+    "consolidated_end_year": 2014,
+    "expected_months_per_year": 12,
+    "domain": {
+      "west": 100.0,
+      "east": 180.0,
+      "south": 0.0,
+      "north": 50.0
+    }
+  },
+  "tracks": {
+    "ibtracs_csv": "data/raw/IBTrACS.WP.v04r01.csv",
+    "primary_csv": "data/processed/tracks.csv",
+    "output_csv": "results/ocean/ohc300/tracks_agency_definitions.csv.gz",
+    "start_year": 1966,
+    "end_year": 2025,
+    "synoptic_hours": [
+      0,
+      6,
+      12,
+      18
+    ],
+    "definitions": [
+      "ts_only",
+      "eligible_full_track"
+    ],
+    "primary_definition": "ts_only"
+  },
+  "matching": {
+    "output_csv": "results/ocean/ohc300/matched_points.csv.gz",
+    "temporal_rule": "contemporaneous_calendar_month",
+    "month_lag": 0,
+    "earth_radius_km": 6371.0088,
+    "max_match_distance_km": 75.0,
+    "gshhg_land_shapefile": "data/raw/GSHHG/GSHHS_shp/h/GSHHS_h_L1.shp",
+    "land_mask_resolution_deg": 0.02
+  },
+  "decomposition": {
+    "output_summary_csv": "results/ocean/ohc300/decomposition_summary.csv",
+    "output_components_csv": "results/ocean/ohc300/decomposition_components.csv.gz",
+    "output_bootstrap_csv": "results/ocean/ohc300/decomposition_bootstrap.csv",
+    "year_assignment_modes": [
+      "calendar_year",
+      "season_year_aligned_only"
+    ],
+    "primary_year_assignment": "calendar_year",
+    "land_treatments": [
+      "ocean_points_only",
+      "nearest_ocean_all_points"
+    ],
+    "primary_land_treatment": "ocean_points_only",
+    "weightings": [
+      "storm_normalized_equal_year",
+      "track_point_equal_year"
+    ],
+    "primary_weighting": "storm_normalized_equal_year",
+    "state_key": "calendar_month_x_native_ocean_cell",
+    "block_length_years": 3,
+    "bootstrap_replicates": 1999,
+    "random_seed": 20260801,
+    "closure_atol": 0.0001,
+    "closure_rtol": 1e-12
+  },
+  "seam_audit": {
+    "left_year": 2014,
+    "right_year": 2015,
+    "numerical_decision": "no_automatic_bias_correction",
+    "output_csv": "results/ocean/ohc300/product_seam_diagnostics.csv",
+    "output_json": "results/ocean/ohc300/product_seam_audit.json",
+    "bias_correction": "none"
+  },
+  "pipeline": {
+    "manifest_csv": "results/ocean/ohc300/output_manifest.csv"
+  }
+}
