@@ -45,6 +45,13 @@ respective observational and model assumptions.
 
 ## Code and data
 
+| Archive | Contents |
+| --- | --- |
+| [`cyclone_track_analysis_code_v1.2.zip`](https://github.com/Museman01/wnp-tc-track-redistribution/releases/download/v1.2/cyclone_track_analysis_code_v1.2.zip) | Scientific Python source code |
+| `cyclone_track_analysis_materials_v1.2.zip` | Source code, scientific configurations, supporting data, results and figures |
+
+The code archive's SHA-256 checksum is provided in [CHECKSUMS.sha256](https://github.com/Museman01/wnp-tc-track-redistribution/releases/download/v1.2/CHECKSUMS.sha256).
+
 The source code is organized by scientific topic, with shared utilities and
 numerical tests. The accompanying science archive supplies the same source code,
 scientific configurations, observations and regional input subsets, numerical
