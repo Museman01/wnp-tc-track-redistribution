@@ -1,0 +1,31 @@
+{
+  "source": "C3S ERA5 monthly averaged pressure-level reanalysis",
+  "dataset_id": "reanalysis-era5-pressure-levels-monthly-means",
+  "access_url": "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-pressure-levels-monthly-means",
+  "files": [
+    {
+      "path": "data/derived/steering_850_500.nc",
+      "size_bytes": 418172627,
+      "original_sha256": "63461c2e2fc4abb17840cd72f7ef9dca26ed5ea6b112ad51a826c41c2d40dea6",
+      "role": "regenerable_derived_field",
+      "source_doi": "10.24381/cds.6860a573",
+      "restoration": "docs/ERA5_INPUTS.md"
+    },
+    {
+      "path": "data/interim/era5_wnp_dynamic_plev.nc",
+      "size_bytes": 3124023380,
+      "original_sha256": "bcf50e6b3e0a6ac3a8ff411eb50067c1e697530a3c44a25c75db7a67f9a5e6ea",
+      "role": "third_party_input",
+      "source_doi": "10.24381/cds.6860a573",
+      "restoration": "docs/ERA5_INPUTS.md"
+    },
+    {
+      "path": "data/interim/steering.nc",
+      "size_bytes": 909145661,
+      "original_sha256": "4fe104c97573feee9cac6c1b70440b7d5f576e0b623ba4db9c8dec57d8809376",
+      "role": "regenerable_derived_field",
+      "source_doi": "10.24381/cds.6860a573",
+      "restoration": "docs/ERA5_INPUTS.md"
+    }
+  ]
+}

@@ -1,26 +1,17 @@
 __pycache__/
 *.py[cod]
-*.log
 .pytest_cache/
 .ipynb_checkpoints/
-.cdsapirc
+.venv/
 .env
-temp/
+.cdsapirc
+*.log
 
-# External and generated data
-data/
-figures/
-manifests/
+# Observations, numerical outputs and figures are distributed separately.
+/data/
+/results/
+/figures/
 *.nc
 *.npz
+*.npy
 *.csv.gz
-
-# Manuscript-facing generated outputs
-wnp_tc_analysis/analysis/**/*.csv
-wnp_tc_analysis/analysis/**/*.json
-wnp_tc_analysis/analysis/**/*.png
-wnp_tc_analysis/analysis/**/*.pdf
-Verify/**/results/
-Verify/**/figures/
-Verify/**/qa/
-Verify/**/new_outputs/

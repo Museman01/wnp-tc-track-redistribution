@@ -1,0 +1,170 @@
+{
+  "analysis_name": "pathway_closure",
+  "period_early": [1966, 1995],
+  "period_late": [1996, 2025],
+  "n_path_points": 20,
+  "n_families": 3,
+  "fuzzy_m": 2.0,
+  "cluster_seeds": 20,
+  "k_scan": [2, 3, 4, 5, 6, 7],
+  "bootstrap_block_years": 3,
+  "n_bootstrap": 1999,
+  "n_label_permutations": 1999,
+  "random_seed": 202406,
+  "density_grid_deg": 2.5,
+  "density_domain": {
+    "lon_min": 100.0,
+    "lon_max": 180.0,
+    "lat_min": 0.0,
+    "lat_max": 40.0
+  },
+  "relative_genesis_domain": {
+    "lon_min": -60.0,
+    "lon_max": 60.0,
+    "lat_min": -30.0,
+    "lat_max": 60.0
+  },
+  "domain_denominator_sensitivity": [
+    {
+      "mode": "current_40n_renormalized",
+      "normalization": "in_domain_renormalized",
+      "lon_min": 100.0,
+      "lon_max": 180.0,
+      "lat_min": 0.0,
+      "lat_max": 40.0
+    },
+    {
+      "mode": "expanded_50n_renormalized",
+      "normalization": "in_domain_renormalized",
+      "lon_min": 100.0,
+      "lon_max": 180.0,
+      "lat_min": 0.0,
+      "lat_max": 50.0
+    },
+    {
+      "mode": "current_40n_fixed_20",
+      "normalization": "fixed_path_points",
+      "lon_min": 100.0,
+      "lon_max": 180.0,
+      "lat_min": 0.0,
+      "lat_max": 40.0
+    }
+  ],
+  "period_scenarios": [
+    {
+      "scenario": "start_1966_main",
+      "start_year": 1966,
+      "cutpoint": 1996,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_1991",
+      "start_year": 1966,
+      "cutpoint": 1991,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_1992",
+      "start_year": 1966,
+      "cutpoint": 1992,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_1993",
+      "start_year": 1966,
+      "cutpoint": 1993,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_1994",
+      "start_year": 1966,
+      "cutpoint": 1994,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_1995",
+      "start_year": 1966,
+      "cutpoint": 1995,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_1997",
+      "start_year": 1966,
+      "cutpoint": 1997,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_1998",
+      "start_year": 1966,
+      "cutpoint": 1998,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_1999",
+      "start_year": 1966,
+      "cutpoint": 1999,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_2000",
+      "start_year": 1966,
+      "cutpoint": 2000,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1966_cut_2001",
+      "start_year": 1966,
+      "cutpoint": 2001,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1982_main",
+      "start_year": 1982,
+      "cutpoint": 2004,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1982_cut_2001",
+      "start_year": 1982,
+      "cutpoint": 2001,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1982_cut_2002",
+      "start_year": 1982,
+      "cutpoint": 2002,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1982_cut_2003",
+      "start_year": 1982,
+      "cutpoint": 2003,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1982_cut_2005",
+      "start_year": 1982,
+      "cutpoint": 2005,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1982_cut_2006",
+      "start_year": 1982,
+      "cutpoint": 2006,
+      "end_year": 2025
+    },
+    {
+      "scenario": "start_1982_cut_2007",
+      "start_year": 1982,
+      "cutpoint": 2007,
+      "end_year": 2025
+    }
+  ],
+  "family_order": [
+    "western_basin",
+    "central_westward",
+    "recurving"
+  ],
+  "primary_weighting": "equal_year_then_equal_storm",
+  "sensitivity_weighting": "not_run_in_primary_verification"
+}

@@ -1,13 +1,11 @@
-"""把 ONI、PDO、GSHHG 也纳入可复现下载链。
+"""下载并规范化活动分析使用的 ONI 与 PDO 指数。
 
-产出：data/raw/indices/oni.csv（season,jas_oni）、pdo.csv（season,pdo），
-      以及把 GSHHG 发行包解压到 gshhg_path 指向的位置。
+产出：data/raw/indices/oni.csv（season,jas_oni）与 pdo.csv（season,pdo）。
 URL/格式以官方页面当时为准；解析失败显式报错并打印原文前几行，绝不静默写空表。
 """
-# requests 下载文本/二进制；io/zipfile 处理压缩包；pandas 解析与落盘。
+# requests 下载文本；io 与 pandas 负责解析，hashlib/json 登记来源。
 import io
 import json
-import zipfile
 import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
@@ -80,18 +78,6 @@ def fetch_pdo(cfg):
     return out
 
 
-def fetch_gshhg(cfg, zip_url):
-    """下载并解压 GSHHG，校验目标 shp 是否就位。zip_url 由官方发行页给出。"""
-    dst = Path(cfg["gshhg_path"]).parent          # gshhg_path 指向 GSHHS_h_L1.shp
-    dst.mkdir(parents=True, exist_ok=True)
-    blob = requests.get(zip_url, timeout=300).content
-    with zipfile.ZipFile(io.BytesIO(blob)) as z:
-        z.extractall(dst.parent)                  # 解到 data/raw/ 下，保留发行目录结构
-    if not Path(cfg["gshhg_path"]).exists():
-        raise FileNotFoundError(
-            f"解压后未找到 {cfg['gshhg_path']}；请核对 zip 内目录结构或调整 gshhg_path")
-
-
 def _check_coverage(df, name, cfg):
     """覆盖度校验：指数年份必须覆盖频率/路径时段，否则下游 merge 会静默丢年份。"""
     need_lo, need_hi = cfg["periods"]["freq_start"], cfg["periods"]["end"]
@@ -101,14 +87,12 @@ def _check_coverage(df, name, cfg):
         print(f"[警告] {name} 缺少年份: {missing[:10]}{'...' if len(missing) > 10 else ''}")
 
 
-def main(gshhg_zip_url=None):
+def main():
     cfg = load_config()
     oni = fetch_oni(cfg)
     _check_coverage(oni, "ONI", cfg)
     pdo = fetch_pdo(cfg)
     _check_coverage(pdo, "PDO", cfg)
-    if gshhg_zip_url:                              # GSHHG 体积大，按需传入官方 zip 地址
-        fetch_gshhg(cfg, gshhg_zip_url)
     print("indices saved:", {"oni": len(oni), "pdo": len(pdo)})
 
 
