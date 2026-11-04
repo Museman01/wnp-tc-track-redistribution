@@ -189,7 +189,7 @@ def table_s7_reporting(source_root):
 
 
 def write_s7_reporting(source_root, output_csv, overwrite=False):
-    """Write the retained-count reporting table without resampling or replacing an existing file by default."""
+    """Write Table S7 from exceedance counts using decimal half-up rounding."""
     destination = Path(output_csv)
     rows, differences = table_s7_reporting(source_root)
     destination.parent.mkdir(parents=True,exist_ok=True)
@@ -209,7 +209,6 @@ def run_analysis():
     perm = permutation_test(cfg, months)
     with open(dest / "permutation_test.json", "w", encoding="utf-8") as fh:
         json.dump(perm, fh, indent=2, ensure_ascii=False)
-    print("permutation done")
 
     sens = {
         "bin_5deg_1966": run_case(cfg, 5.0, 1966, months),
@@ -217,12 +216,11 @@ def run_analysis():
     }
     with open(dest / "sensitivity.json", "w", encoding="utf-8") as fh:
         json.dump(sens, fh, indent=2, ensure_ascii=False)
-    print("sensitivity done")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--report-s7',action='store_true',help='Report retained counts without new permutations')
+    parser.add_argument('--report-s7',action='store_true',help='Write Table S7 from retained exceedance counts')
     parser.add_argument('--source-root',type=Path,default=TASK)
     parser.add_argument('--output-csv',type=Path)
     parser.add_argument('--execute',action='store_true')
@@ -232,7 +230,7 @@ def main():
         if not args.execute or args.output_csv is None:
             parser.error('--report-s7 requires --execute and an explicit --output-csv')
         rows, differences = write_s7_reporting(args.source_root,args.output_csv,args.overwrite)
-        print(f'{len(rows)} reporting rows; {len(differences)} alternate-count differences; no new permutations')
+        print(str(args.output_csv))
     else:
         if args.output_csv is not None or args.execute or args.overwrite or args.source_root != TASK:
             parser.error('Reporting options require --report-s7')

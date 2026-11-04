@@ -1,6 +1,4 @@
-"""AGU 版式与全工程统一绘图风格。
-
-所有活动出图函数复用本模块，保持配色、字体和版面一致。
+"""AGU 版式的绘图配色、字体与版面设置。
 """
 
 from core.paths import PROJECT as _LAYOUT_ROOT
@@ -24,9 +22,7 @@ mpl.rcParams.update({
     "mathtext.bf": "Arial:bold",
     "mathtext.sf": "Arial",
     "axes.unicode_minus": False,
-    # The final figures are commonly read at manuscript-page scale.  The
-    # previous 7--9 pt settings were suitable for screen previews but made
-    # panel labels and axis text undersized after placement in Word/PDF.
+    # Font sizes support reading at manuscript-page scale.
     "font.size": 11, "axes.titlesize": 12, "axes.labelsize": 11,
     "xtick.labelsize": 9.5, "ytick.labelsize": 9.5, "legend.fontsize": 9.5,
     "axes.titlepad": 7,

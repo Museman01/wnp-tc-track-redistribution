@@ -226,7 +226,7 @@ def main():
 
                       'subject':'Journal of Geophysical Research: Atmospheres Figure 1','creator':'Matplotlib','author':'Museman X'})
 
-    # Write through Python: the mounted folder forbids the delete-then-write used by mupdf.
+    # Serialize the PDF before writing its bytes to the output path.
 
     pdf=output_path('figures/Fig01_study_region.pdf');data=doc.tobytes(garbage=3,deflate=True);pdf.write_bytes(data)
 

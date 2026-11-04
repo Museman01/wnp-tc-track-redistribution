@@ -37,25 +37,18 @@ passage, recurvature and landfall counts.
 | OHC300 and D26 exposure decomposition | `analysis/ocean/`, `analysis/ocean/d26_exposure.py` |
 | Main and supplementary figures | `analysis/figures/main_figures.py`, `analysis/figures/si_four_agency_figures.py`, `analysis/figures/diagnostic_figures.py` |
 
-Version 1.2 includes the four-agency comparison, absolute-count diagnostics,
-trajectory-model and steering-layer sensitivities, and the parallel D26 analysis.
+Version 1.3 includes the four-agency comparison, absolute-count diagnostics,
+trajectory-model and steering-layer sensitivities, the parallel D26 analysis, storm-matched six-hourly steering, daily circulation regimes, and count-based Table S7 reporting.
 Statistical decompositions quantify contributions to observed differences;
 circulation associations and model sensitivities are interpreted within their
 respective observational and model assumptions.
 
 ## Code and data
 
-| Archive | Contents |
-| --- | --- |
-| [`cyclone_track_analysis_code_v1.2.zip`](https://github.com/Museman01/wnp-tc-track-redistribution/releases/download/v1.2/cyclone_track_analysis_code_v1.2.zip) | Scientific Python source code |
-| `cyclone_track_analysis_materials_v1.2.zip` | Source code, scientific configurations, supporting data, results and figures |
-
-The code archive's SHA-256 checksum is provided in [CHECKSUMS.sha256](https://github.com/Museman01/wnp-tc-track-redistribution/releases/download/v1.2/CHECKSUMS.sha256).
-
 The source code is organized by scientific topic, with shared utilities and
 numerical tests. The accompanying science archive supplies the same source code,
 scientific configurations, observations and regional input subsets, numerical
-results, and seven main and nineteen supplementary figures.
+results, and seven main and twenty-one supplementary figures.
 
 | Location | Contents |
 | --- | --- |
@@ -131,6 +124,7 @@ acceptance of the dataset terms.
 
 - **IBTrACS v04r01:** [NOAA NCEI data record](https://doi.org/10.25921/82ty-9e16).
 - **HKO 2025:** [Official post-analysis best-track data](https://data.weather.gov.hk/weatherAPI/hko_data/tc/HKO2025BST.csv).
+- **ERA5 hourly pressure-level fields:** [C3S data record](https://doi.org/10.24381/cds.bd0915c6), sampled at 00/06/12/18 UTC.
 - **ERA5 monthly pressure-level fields:** [C3S data record](https://doi.org/10.24381/cds.6860a573).
 - **ORAS5 OHC300 and D26:** Copernicus Climate Change Service (2021).
   *ORAS5 global ocean reanalysis monthly data from 1958 to present* [Data set].
@@ -145,10 +139,48 @@ Please cite the software using [CITATION.cff](CITATION.cff), and cite the origin
 data products used in your analysis.
 
 Huang, D., & Yue, Y. (2026). *Analysis code for post-genesis tropical-cyclone track
-redistribution in the western North Pacific* (Version 1.2) [Software].
+redistribution in the western North Pacific* (Version 1.3) [Software].
 [Source repository](https://github.com/Museman01/wnp-tc-track-redistribution).
 
 Software is released under the [MIT License](LICENSE). Project-generated
 analytical tables and original figures use **CC BY 4.0**. Third-party
 observations, reanalysis and geographic inputs retain their providers' terms;
 these are described with the science archive and accompanying data notices.
+
+## Storm-matched steering and daily circulation regimes
+
+The additional circulation analysis uses the primary IBTrACS record with standard
+LAT/LON coordinates and USA wind selection. Environmental steering is sampled
+at six-hourly storm positions using a 5°–7° annulus and compared with the
+same-year monthly mean at those positions. A 5° disk and a 3°–7° annulus provide
+all-month comparisons. These are separate sampling geometries with their own
+statistical families.
+
+June–October daily winds are classified using a common 1966–2025 EOF basis and
+four circulation regimes. Equal-year frequencies and persistence, fixed-region
+winds, and the symmetric frequency/within-regime path decomposition support
+Tables S13/S14 and Figures S20/S21. The shorter split is 1982–2003 versus
+2004–2025. Three-year blocks, seed 202406, 9,999 permutations and 4,999 bootstrap
+replicates specify the inference. Cluster-count sensitivity uses k=4–8,
+17 principal components, 30 k-means initializations and seed 1.
+
+From the science archive root:
+
+```bash
+python -B -m analysis.circulation.submonthly_analysis all --output submonthly_results --inference
+python -B -m analysis.circulation.submonthly_products --output submonthly_products --refit-clusters
+python -B -m analysis.figures.submonthly_steering . data/raw/GSHHG/GSHHS_shp/i/GSHHS_i_L1.shp submonthly_figures
+python -B -m analysis.circulation.sampling_sensitivity --report-s7 --execute --output-csv table_s7.csv
+```
+
+`data/processed/submonthly_steering/` supplies matched wind vectors, standard
+track points, daily regime labels, the circulation model and daily 2.5° winds.
+`results/circulation/submonthly_steering/` contains statistical comparisons and
+table data; `data/figure_inputs/submonthly_steering/` contains the plotting arrays.
+The code ZIP contains Python sources; dependencies, scientific configurations and
+data are provided by the science archive or accompanying repository files.
+
+Statistics and plots can start from these processed inputs. Re-extracting storm
+environmental winds from ERA5 requires the external six-hourly fields described
+in [docs/SUBMONTHLY_STEERING.md](docs/SUBMONTHLY_STEERING.md). The distributed
+wind statistics do not constitute four independent agency environmental analyses.

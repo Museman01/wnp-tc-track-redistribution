@@ -27,3 +27,5 @@ retained three-agency exceedance counts in
 `results/agency_comparison/table_s7_permutation_four_agency.csv`.
 The permutation formula and calculation command are described in
 `docs/RUNNING.md`.
+
+ERA5 hourly pressure-level data: Copernicus Climate Change Service (2018), https://doi.org/10.24381/cds.bd0915c6. The six-hourly selection and daily preprocessing are specified in [SUBMONTHLY_STEERING.md](SUBMONTHLY_STEERING.md).

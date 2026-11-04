@@ -57,7 +57,7 @@ H=lambda n:pd.read_csv(output_path('results/agency_comparison/figure_series/'+n)
 
 def scale_typography(fig,scale):
 
-    """As figure_typography.scale_figure_typography, with the available Arial-compatible font."""
+    """Scale visible figure text using the available Arial-compatible font."""
 
     fig.canvas.draw()
 
@@ -435,7 +435,7 @@ def figure6():
 
         ax.set(xticks=np.arange(4),xticklabels=['USA','JMA','CMA','HKO'])
 
-        # Marker-only legend entries (the errorbar glyphs were hard to read).
+        # Marker-only legend entries for the agency series.
 
         top_legends.append(ax.legend(handles=[Line2D([0],[0],marker='o',ls='none',color='0.25',ms=5,label='All events'),Line2D([0],[0],marker='s',ls='none',color='0.25',ms=5,label='First landfall')],frameon=False,loc='lower right'))
 
@@ -453,7 +453,7 @@ def figure6():
 
     axes[1,0].set(xticks=np.arange(3),xticklabels=rule_labels,ylabel='North-share change (percentage points)')
 
-    axes[1,0].legend(frameon=False,ncol=4);axes[1,0].set_ylim(2.0,11.3)  # bottom in the reference layout; top leaves room for the panel letter
+    axes[1,0].legend(frameon=False,ncol=4);axes[1,0].set_ylim(2.0,11.3)  # Place the legend at the top with space for the panel letter.
 
     for agency in AG4:
 
@@ -469,7 +469,7 @@ def figure6():
 
     axes[1,1].axvline(1996,color='0.4',ls='--',lw=0.9);axes[1,1].axhline(0,color='0.5',lw=0.8)
 
-    axes[1,1].set(xlabel='First year of late period',ylabel='First-landfall latitude change (°)');axes[1,1].set_ylim(0.4,1.58)  # bottom in the reference layout; top leaves room for the panel letter
+    axes[1,1].set(xlabel='First year of late period',ylabel='First-landfall latitude change (°)');axes[1,1].set_ylim(0.4,1.58)  # Place the legend at the top with space for the panel letter.
 
     status=[Line2D([0],[0],marker='o',linestyle='none',markerfacecolor='0.3',markeredgecolor='0.3',markersize=5,label='p < 0.05'),
 
@@ -533,9 +533,7 @@ def figure7():
 
 def figure5():
 
-    """scripts/39 fig5 with two readability additions: a 0.5 m s-1 reference vector and the
-
-    names 'Raw' and 'Detrended' next to the panel letters. Data: archived circulation outputs."""
+    """Circulation fields with a 0.5 m s-1 reference vector and Raw/Detrended panel labels."""
 
     fields=np.load(ZV/'circulation_metric_validation/results/wnp_tc_circulation_fields.npz')
 

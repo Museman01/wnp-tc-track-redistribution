@@ -37,7 +37,7 @@ _coast=None
 
 
 
-# Preserve the six embedded-image dimensions so Word/PDF geometry stays fixed.
+# Canvas dimensions in pixels for the supplementary figures.
 
 CANVASES={
 

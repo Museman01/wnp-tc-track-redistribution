@@ -192,7 +192,7 @@ def absolute_metrics(catalogues,primary):
 
         'recurvature_definition':'inherited analysis.tracks.track_metrics.recurvature; native TS eligibility, no cross-agency wind conversion',
 
-        'limits':['Descriptive metrics, not causal contributions.','HKO includes official 2025 completion; four-agency inference is a separate P4 output.',
+        'limits':['Descriptive metrics, not causal contributions.','HKO includes official 2025 reports; descriptive metrics are separate from four-agency inference.',
 
                   'A storm can cross multiple latitude bands; unique-storm band counts must not be added.','No claim of an absolute increase without evaluating the relevant count.']})
 
@@ -210,7 +210,7 @@ def main():
 
     absolute_metrics(cats,primary)
 
-    print('P1 absolute, genesis and recurrence metrics saved for PRIMARY/USA/JMA/CMA/HKO.',flush=True)
+    print('Absolute, genesis and recurrence metrics saved for PRIMARY/USA/JMA/CMA/HKO.',flush=True)
 
 
 

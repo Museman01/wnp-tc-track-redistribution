@@ -202,9 +202,9 @@ def regressions():
 
         'baseline_field_mean_r2_maxabs':err,'inference':'499 ordered-three-year block permutations; detrended fields; local BH FDR',
 
-        'geometry':'descriptive two-period fields, not causal attribution','coverage':'1966-2025; annual June-October; original coarsening retained'})
+        'geometry':'descriptive two-period fields, not causal attribution','coverage':'1966-2025; annual June-October; coarsened spatial grid'})
 
-    # Same unweighted corridor averaging as the original Figure 5c source.
+    # Unweighted spatial mean over the Figure 5c corridor.
 
     la=a['latitude'];lo=a['longitude'];lm=(la>=10)&(la<=30);om=(lo>=110)&(lo<=160)
 
@@ -222,7 +222,7 @@ def regressions():
 
     pd.DataFrame(corridor).to_csv(_LAYOUT_ROOT / 'results/circulation/steering_corridor_annual.csv',index=False)
 
-    print('P3 field regressions finished; original mean-r2 maxabs',err,flush=True)
+    print('Field-mean r-squared maximum absolute difference from reference:',err,flush=True)
 
 
 

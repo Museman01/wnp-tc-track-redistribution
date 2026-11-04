@@ -1,4 +1,4 @@
-"""P4: equal-window native four-agency track-field comparison, including common storms."""
+"""Equal-window native four-agency track-field comparison, including common storms."""
 
 from __future__ import annotations
 

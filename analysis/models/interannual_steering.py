@@ -1,13 +1,12 @@
 """年际引导流分布反事实试验（事后探索，非预注册）。
 
-⚠ 本分析在看到主试验结果之后设计，**不属于 `DESIGN.md` 冻结的预设判据体系**。
-其结论只能作为探索性线索，不得当作预注册检验的结果引用。主试验结论不受本文件影响。
+本分析为事后探索性分析，未预注册；结论应作为探索性线索解释。
 
 动机
 ----
 主试验用两期**气候态**引导流，把年际变率平均掉了，结果显示两期均值只差 0.14σ、
 不足以驱动路径重组。剩下的可能性是重组来自引导流**分布（频率）**的变化而非均值位移。
-本试验在不引入任何新数据的前提下，把气候态换成**逐年月场**，向该方向推进一格。
+本试验使用**逐年月场**比较引导流分布。
 
 设计
 ----
@@ -19,7 +18,7 @@
 
 局限
 ----
-月场仍无法表达天气尺度（数日）的引导形势差异。本试验只推进到**年际**一层，
+月场无法表达天气尺度（数日）的引导形势差异。本试验考察**年际**变化，
 不等价于 6 小时分辨率的天气尺度检验。
 """
 
@@ -43,7 +42,7 @@ cfs = importlib.util.module_from_spec(spec)
 sys.modules["cfs"] = cfs
 spec.loader.exec_module(cfs)
 
-N_REAL = 20   # 稳定性复核：提高集合数，检验 r 是否随之漂移
+N_REAL = 20   # 随机年份配对的集合数
 SEED = 20260804
 
 
@@ -51,8 +50,7 @@ def _interp2(field: np.ndarray, lat0: float, dlat: float, nlat: int,
              lon0: float, dlon: float, nlon: int, la: float, lo: float) -> float:
     """标量双线性插值。
 
-    与 `cfs.bilinear` 数学等价，但不创建临时数组——原实现每步为单个点分配
-    多个 numpy 数组，在 21 次积分、约 35 万个点的规模下开销占绝对主导。
+    与 `cfs.bilinear` 数学等价，使用标量运算避免逐点创建临时数组。
     """
     fy = (la - lat0) / dlat
     fx = (lo - lon0) / dlon
@@ -114,7 +112,7 @@ def main() -> None:
     prev = json.loads((_LAYOUT_ROOT / 'results/models/counterfactual/criteria.json').read_text(encoding="utf-8"))
     par = prev["calibration"]
     print(f"沿用主试验标定 α={par['alpha']:.3f} beta=({par['u_beta']:+.2f},{par['v_beta']:+.2f})"
-          f"（读自 results/criteria.json，未重新标定）")
+          f"（固定标定参数）")
 
     g = tracks.groupby("sid")
     seeds = g.first().reset_index()[["sid", "season", "lat", "lon", "iso_time"]]

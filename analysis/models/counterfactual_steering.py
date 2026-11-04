@@ -75,8 +75,8 @@ _STEER_CACHE: dict | None = None
 def _load_steering_once() -> dict:
     """整场一次性读入内存。
 
-    挂载盘上对 867MB 文件做多次随机索引读极慢（实测CPU占用为0，全部阻塞在I/O）。
-    优先使用本地副本，并只读一次，之后各期气候态在内存中切片计算。
+    优先读取 /tmp/steering.nc（若存在），否则读取 data/interim/steering.nc。
+    引导场缓存于内存，各时期气候态由缓存切片计算。
     """
     global _STEER_CACHE
     if _STEER_CACHE is not None:
@@ -326,7 +326,7 @@ def main() -> None:
         print(f"  判据3 生成后份额  {pg*100:.1f}%  = 平均引导流 {res['share_steer']*100:.1f}%"
               f" + 域内寿命 {res['share_life']*100:.1f}%；生成位置 {res['share_loc']*100:.1f}%")
         print(f"        （Shapley 生成后 73.7–80.0%，印证区间 60–90%）"
-              f" → {'印证' if 0.60 <= pg <= 0.90 else '分歧，须在讨论中说明'}")
+              f" → {'印证' if 0.60 <= pg <= 0.90 else '分歧'}")
     else:
         print("  判据1–3 不适用：判据0未过，本试验对机制问题不给结论。")
 

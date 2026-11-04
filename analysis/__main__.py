@@ -4,6 +4,7 @@ import runpy
 import sys
 
 ROUTES = {
+    "submonthly": ("analysis.circulation.submonthly_analysis", []),
     "tracks": ("analysis.tracks.agency_comparison", []),
     "landfall": ("analysis.tracks.agency_comparison", ["landfall"]),
     "genesis": ("analysis.tracks.genesis_conditioned_decomposition", []),

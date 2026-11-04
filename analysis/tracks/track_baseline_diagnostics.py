@@ -75,7 +75,7 @@ def interp(f,lat,lon,plat,plon):
 
 def simulate(seeds,u,v,lat,lon,par):
 
-    """Same step order as the archived engine: record, sample genesis-month field, advance."""
+    """Integration order: record position, sample the genesis-month field, advance."""
 
     a,ub,vb=par
 

@@ -3,7 +3,7 @@
 产出 landfall_fraction_annual.csv 和 landfall_by_coast.csv。
 频数可用全期；平均/中位登陆强度只用 1982 年后（资料均一期），且仅基于源数据有可用
 风速的事件。1982 年后源 landfalls.csv 仍可能缺风速（个别"年份×海岸"组可能全部缺测），
-相应强度统计记为缺失（NaN），不以 0 或插值伪造——验收标准是"输出与源可用风速一致"。
+相应强度统计记为缺失（NaN）；强度统计仅使用源数据中可用的风速，不以 0 或插值填补。
 """
 import pandas as pd
 from core.utils import load_config

@@ -1,20 +1,12 @@
-"""Supporting Information Figure S5 redrawn with the map at true scale at 20°N.
+"""Supporting Information Figure S5 at true map scale at 20°N.
 
-
-
-The plotting code of the submitted Figure S5 is not part of the project; its values are
-
-therefore read from the submitted vector PDF itself and re-plotted unchanged:
-
-  * panel a: the 32 x 16 grid of 2.5-degree cells is stored as filled rectangles whose
-
-    viridis colours (vmin 0, vmax 25) map back to integer storm counts;
-
-  * panel b: marker centres give mean LMI (kt) per 5-degree genesis-latitude bin, and the
-
-    n labels give the storm numbers.
-
-Extracted values: results/tracks/figS05_lmi_location_values.csv and .._genesis_bins.csv."""
+Values are extracted from the reference vector PDF:
+  * panel a: a 32 x 16 grid of 2.5-degree cells, with viridis colours
+    (vmin 0, vmax 25) corresponding to integer storm counts;
+  * panel b: mean LMI (kt) per 5-degree genesis-latitude bin, with storm counts.
+Inputs are results/tracks/figS05_lmi_location_values.csv and
+results/tracks/figS05_lmi_location_genesis_bins.csv.
+"""
 
 from __future__ import annotations
 
@@ -176,7 +168,7 @@ def main():
 
     plt.close(fig)
 
-    write_json('results/diagnostics/figS05_redraw.json',dict(status='PASS',source='values read from the submitted Figure S5 vector PDF',cells=int(counts.size),
+    write_json('results/diagnostics/figS05_redraw.json',dict(status='PASS',source='values extracted from the reference Figure S5 vector PDF',cells=int(counts.size),
 
         total_count=int(counts.sum()),max_count=int(counts.max()),bins=bins.to_dict('records'),map_aspect='1/cos(20 deg)'))
 

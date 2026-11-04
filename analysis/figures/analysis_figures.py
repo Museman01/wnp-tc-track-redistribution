@@ -189,8 +189,7 @@ def fig01():
             txt.set_path_effects([pe.withStroke(linewidth=0.9, foreground="white")])
         pm = ax.pcolormesh(d["lon"], d["lat"], d["dens"], cmap=fs.SEQ,
                            vmin=0, vmax=vmax)
-        # Decade and valid-year labels are moved to the caption; the panel is
-        # identified only by its letter in the figure.
+        # Captions identify decades and valid-year counts; panels use letter labels.
         fs.panel_letter(ax, "abcdefghijklmnopqrstuvwxyz"[idx])
     for ax in axes.ravel()[n:]:
         ax.axis("off")
@@ -592,7 +591,7 @@ def fig09():
         "China_E", "China_S", "Taiwan", "Japan", "Korea",
         "Philippines", "Vietnam"
     ]
-    # Match the coast-mask colors used in Fig01_study_domains_redrawn.
+    # Match the coast-mask colours used in Figure 1.
     # Keep "Other" neutral because it has no corresponding mask in Fig. 1.
     coast_colors = {
         "China_E": "#4E9BC0",

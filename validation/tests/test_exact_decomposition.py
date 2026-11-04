@@ -135,7 +135,3 @@ if __name__ == "__main__":
     test_density_normalization_and_relative_translation()
     test_fixed_path_point_denominator_retains_domain_loss()
     test_scenario_indices()
-    print(
-        "PASS: exact closure, known-answer components, density geometry, "
-        "block indexing, and period indexing"
-    )

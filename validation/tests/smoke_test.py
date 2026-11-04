@@ -1,4 +1,4 @@
-"""用极小合成数据跑通活动 Core 主链路并检查基本不变量。
+"""合成轨迹、年序列和周期信号上的几何与统计不变量。
 
 运行：python -m validation.tests.smoke_test  （或 pytest validation/tests/smoke_test.py）
 """
@@ -39,4 +39,3 @@ def test_smoke_core_chain():
 
 if __name__ == "__main__":
     test_smoke_core_chain()
-    print("core smoke test passed")

@@ -1,6 +1,6 @@
 """无依赖的 Morlet 连续小波变换（Torrence & Compo, 1998）。
 
-被两篇论文导入做周期分析（ENSO/PDO 频带、年际-年代际信号）。
+用于 ENSO/PDO 频带及年际—年代际信号的周期分析。
 纯 numpy 实现，不依赖 pycwt 等需编译的库。
 分析前对输入去线性趋势并标准化；长期周期只有在 COI 外有效周期数充足时才解释。
 
@@ -134,4 +134,3 @@ if __name__ == "__main__":
     peak = period[int(np.argmax(gs))]
     print(f"peak period = {peak:.3f} (expected ~4)")
     assert abs(peak - 4.0) < 4.0 * 0.125 * 2, "峰值周期偏离过大"
-    print("wavelet self-check passed")

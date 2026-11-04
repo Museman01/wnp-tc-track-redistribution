@@ -160,7 +160,7 @@ def main():
 
         'meaning':'sampling includes the explained track-position change; not a causal mechanism',
 
-        'design':'layer sensitivity added after original results, not prespecified historical analysis'})
+        'design':'exploratory layer sensitivity, not prespecified'})
 
 
 

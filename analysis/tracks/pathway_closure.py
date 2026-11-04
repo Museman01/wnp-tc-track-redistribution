@@ -1079,8 +1079,7 @@ def write_p0_report(
         "",
         "本报告覆盖标签置换、相对生成点分解、k=2—7扫描、"
         "1966/1982起算与移动切点，以及域边界/密度分母敏感性。"
-        "所有数值均由本轮脚本同步写入CSV；"
-        "不据图读数，也不构成动力因果归因。",
+        "数值结果见各项对应的CSV；本分解不构成动力因果归因。",
         "",
         "## 1. 标签置换零分布",
         "",
@@ -1277,10 +1276,9 @@ def write_p0_report(
             "## 当前边界",
             "",
             f"- 相对生成点固定域的最低点覆盖率为{min_relative_coverage:.4f}；"
-            "绝对坐标的50°N扩展域与固定20点分母敏感性已完成。",
-            "- 以上检验回答统计路径结构是否稳健，不回答海温、环流或海气耦合机制；"
-            "AGU海洋过程分析按当前优先级顺延。",
-            "- 是否入稿须结合合成测试、域边界敏感性和科学解释共同裁决，"
+            "绝对坐标敏感性使用50°N扩展域与固定20点分母。",
+            "- 以上检验回答统计路径结构是否稳健，不识别海温、环流或海气耦合机制。",
+            "- 统计结果须结合合成测试、域边界敏感性和科学解释共同解读，"
             "不能由代数闭合或单个p值自动决定。",
             "",
         ]
@@ -1851,12 +1849,11 @@ def main() -> None:
                     domain_results.select_dtypes(include=[np.number])
                 ).all().all()
             ),
-            "formal_release_modified": False,
         },
         "scientific_decision": {
             "automatic_gate": False,
             "reason": (
-                "P0 statistics and structural sensitivities require joint "
+                "Pathway statistics and structural sensitivities require joint "
                 "scientific interpretation."
             ),
         },
@@ -1889,8 +1886,6 @@ def main() -> None:
             [
                 "# 验证报告",
                 "",
-                f"- 实现不变量：{'通过' if gate_pass else '失败'}；"
-                "该项只验证计算实现，不作为科学有效性门禁。",
                 f"- 最大路径场闭合误差："
                 f"{manifest['implementation_invariants']['max_absolute_path_closure_error']:.3e}。",
                 f"- 登陆纬度闭合误差：{landfall['closure_abs']:.3e}。",
@@ -1902,10 +1897,7 @@ def main() -> None:
                 f"{max(verify_cfg['k_scan'])}，每个k使用{cluster_seeds}个种子。",
                 f"- 域/分母敏感性：{len(domain_results)}个资料—口径组合，"
                 "均使用同一条件标签置换。",
-                f"- P0输出齐备："
-                f"{'是' if all((results_dir / name).exists() for name in p0_files) else '否'}。",
-                "- 原始数据、正式代码与正式成果：未修改。",
-                "- 科学判定不自动通过：统计路径闭环及其敏感性"
+                "- 统计路径闭环及其敏感性"
                 "不构成动力因果归因。",
                 "",
             ]

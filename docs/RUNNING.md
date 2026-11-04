@@ -67,3 +67,7 @@ python -B -m analysis.circulation.sampling_sensitivity --report-s7 --execute --o
 
 The command uses the supplied exceedance counts. Values below 0.001 are
 reported as <0.001; other displayed p values are rounded to three decimal places.
+
+## Storm-matched steering and regimes
+
+See [SUBMONTHLY_STEERING.md](SUBMONTHLY_STEERING.md) for processed inputs, external ERA5 selection and scientific parameters. The README gives commands for the statistics, Tables S13/S14 and Figures S20/S21.

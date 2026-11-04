@@ -1058,7 +1058,7 @@ def run(*, reuse_existing: bool = False):
 
     (ANALYSIS / "title_evidence_boundary.md").write_text(
 
-        f"# 标题证据边界\n\n## 直接登陆纬度P0结果\n\n{results_lines}\n\n## 规则A判定\n\n{criteria_lines}\n\n留一海岸检验只用于判断北移方向是否由单一岸段驱动，相关置换p值作诊断，不替代预设完整样本的族内FDR检验。卫星时期趋势判据只检查方向，趋势显著性及置信区间单独报告。\n\n## 推荐标题\n\n**{title}**\n\n规则A未通过时不得在标题中使用无条件“登陆纬度北移”。\n",
+        f"# 登陆纬度证据边界\n\n## 直接登陆纬度结果\n\n{results_lines}\n\n## 规则A判定\n\n{criteria_lines}\n\n留一海岸检验只用于判断北移方向是否由单一岸段驱动，相关置换p值作诊断，不替代预设完整样本的族内FDR检验。卫星时期趋势判据只检查方向，趋势显著性及置信区间单独报告。\n",
 
         encoding="utf-8")
 

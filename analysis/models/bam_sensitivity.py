@@ -272,7 +272,7 @@ def main():
 
             err=max(float(abs(legacy[k].mean(0)-archived[v].ravel()).max()) for k,v in mapping.items())
 
-            if err>1e-10:raise AssertionError(f'New engine does not reproduce legacy trajectories: {err}')
+            if err>1e-10:raise AssertionError(f'Trajectory fields differ from the reference: {err}')
 
             write_json('results/diagnostics/bam_engine_reference_equivalence.json',{'status':'PASS','maxabs_period_fields':err})
 

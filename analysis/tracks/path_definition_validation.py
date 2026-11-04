@@ -272,7 +272,7 @@ def run():
 
 
 
-        # Resolution checks for the newly introduced occupancy definition.
+        # Grid-resolution sensitivity for the occupancy definition.
 
         for width in [1.0, 5.0]:
 

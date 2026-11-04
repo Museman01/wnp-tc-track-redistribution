@@ -165,6 +165,5 @@
     "central_westward",
     "recurving"
   ],
-  "primary_weighting": "equal_year_then_equal_storm",
-  "sensitivity_weighting": "not_run_in_primary_verification"
+  "primary_weighting": "equal_year_then_equal_storm"
 }

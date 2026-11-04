@@ -1,4 +1,4 @@
-"""P5: bounded primary-record D26 decomposition with a matched OHC300 comparator."""
+"""Primary-record D26 decomposition with a matched OHC300 comparator."""
 
 from __future__ import annotations
 

@@ -83,7 +83,7 @@ def require_execute(enabled: bool) -> None:
 
 
 def validate_product_seam(config: dict) -> dict:
-    """Check the numerical product-boundary diagnostics without review documents."""
+    """Check the numerical product-boundary diagnostics."""
     settings = config["seam_audit"]
     report_path = project_path(settings["output_json"])
     if not report_path.is_file():

@@ -143,7 +143,7 @@ def draw(variant='overlay',out=None):
 
     FONT=mf.FONT
 
-    W,H=672.0,292.0                     # reference figure 672 x 264 pt; 28 pt added for the legend row
+    W,H=672.0,292.0                     # Panel area 672 x 264 pt; legend row 28 pt.
 
     fig=plt.figure(figsize=(W/72,H/72))
 
@@ -265,7 +265,7 @@ def draw(variant='overlay',out=None):
 
     box(368.7,66.0,510.6,113.0,'open',[L('Monthly-mean steering'),L('contribution unresolved'),L('(trajectory-model baseline bias)',size=8.0)])
 
-    box(521.6,66.0,663.6,113.0,'open',[L('Untested processes'),L('submonthly steering regimes,',size=8.0),L('vortex structure, starting position,',size=8.0),L('storm lifetime and termination',size=8.0)])
+    box(521.6,66.0,663.6,113.0,'open',[L('Untested processes'),L('within-regime steering patterns,',size=8.0),L('vortex structure, starting position,',size=8.0),L('storm lifetime and termination',size=8.0)])
 
     # Row 3 and 4: observed changes
 
@@ -311,9 +311,9 @@ def draw(variant='overlay',out=None):
 
     plt.close(fig)
 
-    if out:print('draft',stem);plt.close(fig);return
+    if out:print(stem);plt.close(fig);return
 
-    write_json('results/diagnostics/synthesis_figure.json',dict(status='PASS',variant=variant,layout='reference figure (672 x 264 pt) plus a 28-pt legend row',
+    write_json('results/diagnostics/synthesis_figure.json',dict(status='PASS',variant=variant,layout='672 x 264 pt panel area; 28-pt legend row',
 
         shading='results/tracks/absolute_track_point_change.npz, cells with |change|<0.15 masked, colour limits +/-2 track points per year (extend both)',
 
@@ -321,9 +321,7 @@ def draw(variant='overlay',out=None):
 
             association=['PDO, steering flow, and background-adjusted height covary with the annual redistribution index'],
 
-            unresolved_or_untested=['Monthly-mean steering contribution','Submonthly steering regimes, vortex structure, starting position, storm lifetime and termination']),
-
-        removed=['Reconfiguration of subtropical-circulation geometry','PDO-to-circulation causal arrow','Displacement of the mean steering flow (0.14 sigma zonal, 0.08 sigma meridional)']))
+            unresolved_or_untested=['Monthly-mean steering contribution','Within-regime steering patterns, vortex structure, starting position, storm lifetime and termination'])))
 
     print('Figure 7 written')
 
@@ -339,6 +337,7 @@ if __name__=='__main__':
 
     sys.argv.remove('--execute')
 
-
+    
 
     {'download':download,'build':build,'draw':draw}[sys.argv[1]](*sys.argv[2:])
+

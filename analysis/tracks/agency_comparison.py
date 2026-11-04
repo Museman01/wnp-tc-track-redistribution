@@ -659,7 +659,7 @@ def load_sts():
 
 def stage_s7perm(nperm=9999):
 
-    """Table S7 main block: same permutation stream as the submitted table (agencies in order, HKO appended)."""
+    """Table S7 permutations use a shared random stream in USA, JMA, CMA, HKO order."""
 
     sts=load_sts();cfg=sts.load_config();months=cfg['typhoon_season'];years=list(range(1966,2026))
 
@@ -791,7 +791,7 @@ def stage_s7sens():
 
 
 
-# ---------------------------------------------------------------- Table S6 OHC (HKO added)
+# ---------------------------------------------------------------- Table S6 four-agency OHC
 
 OHCZ=_LAYOUT_ROOT;OHCSRC=_LAYOUT_ROOT / 'analysis/ocean'
 
