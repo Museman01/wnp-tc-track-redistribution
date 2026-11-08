@@ -32,7 +32,7 @@ from shapely.prepared import prep
 
 
 
-from analysis.shared.agency_paths import PROJECT, REPORTS, WORK, load_config
+from analysis.shared.agency_paths import PROJECT, WORK, load_config
 
 from analysis.figures.validation_figure_typography import scale_figure_typography
 
@@ -748,37 +748,18 @@ def compare_raster(exact: pd.DataFrame) -> pd.DataFrame:
 
 
 
-def title_decision(summary: pd.DataFrame, leave_out: pd.DataFrame) -> tuple[str, dict]:
-
-    main = summary.loc[(summary.start == 1966) & (summary.end == 2025) & summary.metric.eq("mean_lat") & summary.definition.isin(["first_landfall", "all_events"])]
-
-    no2025 = summary.loc[(summary.start == 1966) & (summary.end == 2024) & summary.metric.eq("mean_lat") & summary.definition.isin(["first_landfall", "all_events"])]
-
-    recent = summary.loc[(summary.start == 1982) & (summary.end == 2025) & summary.metric.eq("mean_lat") & summary.definition.isin(["first_landfall", "all_events"])]
-
+def evidence_criteria(summary: pd.DataFrame, leave_out: pd.DataFrame) -> dict:
+    main = summary.loc[(summary.start == 1966) & (summary.end == 2025) & summary.metric.eq('mean_lat') & summary.definition.isin(['first_landfall', 'all_events'])]
+    no2025 = summary.loc[(summary.start == 1966) & (summary.end == 2024) & summary.metric.eq('mean_lat') & summary.definition.isin(['first_landfall', 'all_events'])]
+    recent = summary.loc[(summary.start == 1982) & (summary.end == 2025) & summary.metric.eq('mean_lat') & summary.definition.isin(['first_landfall', 'all_events'])]
     direction_all = bool((main.period_difference > 0).all())
-
-    significant_agencies = main.loc[main.period_q_bh < 0.05, "agency"].nunique()
-
+    significant_agencies = main.loc[main.period_q_bh < 0.05, 'agency'].nunique()
     no2025_no_reversal = bool((no2025.period_difference > 0).all())
-
     recent_direction = bool((recent.sen_slope_per_decade >= 0).all())
-
-    leave = leave_out.loc[leave_out.excluded_coast.ne("none")]
-
+    leave = leave_out.loc[leave_out.excluded_coast.ne('none')]
     not_single_coast = bool((leave.period_difference_mean_lat > 0).groupby([leave.agency, leave.definition]).mean().ge(0.75).all())
-
     passed = direction_all and significant_agencies >= 2 and no2025_no_reversal and recent_direction and not_single_coast
-
-    title = ("西北太平洋1966—2025年热带气旋路径空间重分配与登陆纬度北移" if passed
-
-             else "西北太平洋1966—2025年热带气旋路径空间重分配与登陆海岸构成变化")
-
-    return title, {"direction_all": direction_all, "significant_agencies": int(significant_agencies),
-
-                   "no2025_no_reversal": no2025_no_reversal, "recent_direction": recent_direction,
-
-                   "not_single_coast": not_single_coast, "rule_A_passed": passed}
+    return {'direction_all': direction_all, 'significant_agencies': int(significant_agencies), 'no2025_no_reversal': no2025_no_reversal, 'recent_direction': recent_direction, 'not_single_coast': not_single_coast, 'combined_criteria_met': passed}
 
 
 
@@ -880,39 +861,7 @@ def make_figure(annual, summary, output):
 
 
 
-def update_registry(summary):
 
-    path = REPORTS / "results_registry.csv"
-
-    registry = pd.read_csv(path)
-
-    registry = registry.loc[~registry.claim_id.str.startswith("landfall_latitude_", na=False)]
-
-    rows = []
-
-    key = summary.loc[(summary.start == 1966) & (summary.end == 2025) & summary.metric.eq("mean_lat") & summary.definition.isin(["first_landfall", "all_events"])]
-
-    for r in key.itertuples():
-
-        rows.append({
-
-            "manuscript_section": "Results direct landfall latitude", "claim_id": f"landfall_latitude_{r.definition}_{r.agency}",
-
-            "metric": "annual_mean_landfall_latitude_period_difference", "dataset": AGENCY_LABEL[r.agency], "period": "1966-1995 vs 1996-2025",
-
-            "spatial_domain": "WNP GSHHG land crossings", "method": "exact segment-coastline intersection; annual aggregation; 3-yr block permutation",
-
-            "estimate": r.period_difference, "uncertainty": f"moving-block 95% CI [{r.period_ci_low}, {r.period_ci_high}]",
-
-            "p_value": r.period_block_p, "q_value": r.period_q_bh, "source_script": "src/landfall_latitude.py",
-
-            "source_output": "analysis/01_landfall_latitude/landfall_latitude_summary.csv", "status": "recalculated_new_result",
-
-            "notes": f"definition={r.definition}; FDR family={r.period_fdr_family}",
-
-        })
-
-    pd.concat([registry, pd.DataFrame(rows)], ignore_index=True).to_csv(path, index=False)
 
 
 
@@ -1044,7 +993,7 @@ def run(*, reuse_existing: bool = False):
 
     samples.to_csv(ANALYSIS / "manual_validation_samples.csv", index=False)
 
-    title, criteria = title_decision(summary, leave)
+    criteria = evidence_criteria(summary, leave)
 
     key = summary.loc[(summary.start == 1966) & (summary.end == 2025) & summary.metric.eq("mean_lat") & summary.definition.isin(["first_landfall", "all_events"])]
 
@@ -1056,9 +1005,9 @@ def run(*, reuse_existing: bool = False):
 
         for r in key.itertuples())
 
-    (ANALYSIS / "title_evidence_boundary.md").write_text(
+    (ANALYSIS / "landfall_evidence.md").write_text(
 
-        f"# 登陆纬度证据边界\n\n## 直接登陆纬度结果\n\n{results_lines}\n\n## 规则A判定\n\n{criteria_lines}\n\n留一海岸检验只用于判断北移方向是否由单一岸段驱动，相关置换p值作诊断，不替代预设完整样本的族内FDR检验。卫星时期趋势判据只检查方向，趋势显著性及置信区间单独报告。\n",
+        f"# 登陆纬度证据边界\n\n## 直接登陆纬度结果\n\n{results_lines}\n\n## 方向与敏感性诊断\n\n{criteria_lines}\n\n留一海岸检验只用于判断北移方向是否由单一岸段驱动，相关置换p值作诊断，不替代预设完整样本的族内FDR检验。卫星时期趋势判据只检查方向，趋势显著性及置信区间单独报告。\n",
 
         encoding="utf-8")
 
@@ -1072,7 +1021,7 @@ def run(*, reuse_existing: bool = False):
 
     elapsed = time.time() - started
 
-    (WORK / "outputs/logs/01_landfall_latitude.log").write_text(
+    (ANALYSIS / "matching_diagnostics.log").write_text(
 
         f"elapsed_seconds={elapsed:.3f}\nfull_lifecycle_events={len(full_lifecycle)}\nqualified_native_ts_events={len(events)}\nunresolved_candidates={len(unresolved)}\nUSA={sum(events.agency.eq('USA'))}\nJMA={sum(events.agency.eq('TOKYO'))}\nCMA={sum(events.agency.eq('CMA'))}\n",
 
@@ -1080,7 +1029,6 @@ def run(*, reuse_existing: bool = False):
 
     print(key[["agency", "definition", "period_difference", "period_ci_low", "period_ci_high", "period_block_p", "period_q_bh"]].to_string(index=False))
 
-    print(title)
 
 
 
@@ -1104,7 +1052,7 @@ if __name__ == "__main__":
 
         action="store_true",
 
-        help="Reuse the existing exact crossing table and rerun stage/statistical layers.",
+        help="Use the existing exact crossing table to calculate intensity selection and statistics.",
 
     )
 

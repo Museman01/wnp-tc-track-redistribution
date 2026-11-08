@@ -1,3 +1,11 @@
+# Version 1.3.1
+
+- Four-agency robustness matrix with 126 configurations and HKO endpoint/decade sensitivities.
+- Storm-level circulation-regime, period-logistic and anchor-day persistence analyses.
+- Regional 500-hPa height-gradient diagnostics and block-based uncertainty.
+- Six-hourly storm-centre trajectory baseline methods, fitted parameters and diagnostics.
+- Main track-composition and synthesis figures, their numerical inputs and plotting sources.
+
 # Version 1.3
 
 - Storm-matched six-hourly and same-year monthly steering statistics, with annulus and disk sampling and block-based uncertainty.

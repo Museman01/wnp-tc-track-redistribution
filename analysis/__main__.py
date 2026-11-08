@@ -4,6 +4,12 @@ import runpy
 import sys
 
 ROUTES = {
+    "hko-robustness": ("analysis.tracks.hko_robustness_matrix", []),
+    "regime-association": ("analysis.circulation.regime_recurvature_association", []),
+    "regime-logistic": ("analysis.circulation.regime_recurvature", []),
+    "regime-persistence": ("analysis.circulation.regime_persistence_recurvature", []),
+    "height-gradient": ("analysis.circulation.height_gradient_diagnostic", []),
+    "six-hourly-trajectories": ("analysis.models.six_hourly_trajectory", []),
     "submonthly": ("analysis.circulation.submonthly_analysis", []),
     "tracks": ("analysis.tracks.agency_comparison", []),
     "landfall": ("analysis.tracks.agency_comparison", ["landfall"]),

@@ -20,8 +20,9 @@ passage, recurvature and landfall counts.
   four-agency common sample contains **1,465 storms**.
 - HKO is included throughout the 1966–2025 agency comparisons, with its official
   2025 post-analysis reports supplementing the IBTrACS record.
-- The 1945-start comparison and 106-configuration robustness matrix retain their
-  three-agency scope; HKO records begin in 1961.
+- The 1945-start comparison retains USA/JMA/CMA; HKO records begin in 1961.
+  The robustness matrix contains 126 configurations, including 20 HKO configurations.
+  All 108 defined signed projections are positive; 91 configurations have *p*<0.05.
 
 ## Main analyses
 
@@ -35,9 +36,13 @@ passage, recurvature and landfall counts.
 | Trajectory-model calibration, baseline evaluation and finite sensitivities | `analysis/models/bam_primary_fit.py`, `analysis/models/bam_sensitivity.py` |
 | Cross-agency translation-speed decomposition | `analysis/tracks/agency_comparison.py`, `analysis/tracks/speed_decomposition.py` |
 | OHC300 and D26 exposure decomposition | `analysis/ocean/`, `analysis/ocean/d26_exposure.py` |
+| HKO robustness configurations | `analysis/tracks/hko_robustness_matrix.py` |
+| Storm-level regime association, period logistic models and anchor-day persistence | `analysis/circulation/regime_recurvature.py`, `regime_recurvature_association.py`, `regime_persistence_recurvature.py` |
+| Spatial variation in the 500-hPa height rise | `analysis/circulation/height_gradient_diagnostic.py` |
+| Six-hourly storm-centre trajectory baselines | `analysis/models/six_hourly_trajectory.py` |
 | Main and supplementary figures | `analysis/figures/main_figures.py`, `analysis/figures/si_four_agency_figures.py`, `analysis/figures/diagnostic_figures.py` |
 
-Version 1.3 includes the four-agency comparison, absolute-count diagnostics,
+Version 1.3.1 includes the four-agency comparison, absolute-count diagnostics,
 trajectory-model and steering-layer sensitivities, the parallel D26 analysis, storm-matched six-hourly steering, daily circulation regimes, and count-based Table S7 reporting.
 Statistical decompositions quantify contributions to observed differences;
 circulation associations and model sensitivities are interpreted within their
@@ -86,7 +91,7 @@ python -m pip install -r requirements.txt
 
 The main settings are in `config/config.yaml`. Agency resampling settings are in
 `config/agency_validation.yaml`; the ocean-exposure and pathway modules have
-their own configuration files. Stage-specific seeds and resampling counts in the
+their own configuration files. Analysis-specific seeds and resampling counts in the
 source also form part of the analysis specification.
 
 Use `python -m analysis --help` to list the analysis entry points.
@@ -138,8 +143,7 @@ shorelines and relief-map inputs.
 Please cite the software using [CITATION.cff](CITATION.cff), and cite the original
 data products used in your analysis.
 
-Huang, D., & Yue, Y. (2026). *Analysis code for post-genesis tropical-cyclone track
-redistribution in the western North Pacific* (Version 1.3) [Software].
+Huang, D., & Yue, Y. (2026). *Analysis code and data for “Life-Cycle Redistribution of Western North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude: Cross-Agency Evidence From 1966–2025”* (Version 1.3.1) [Software and data].
 [Source repository](https://github.com/Museman01/wnp-tc-track-redistribution).
 
 Software is released under the [MIT License](LICENSE). Project-generated
@@ -184,3 +188,44 @@ Statistics and plots can start from these processed inputs. Re-extracting storm
 environmental winds from ERA5 requires the external six-hourly fields described
 in [docs/SUBMONTHLY_STEERING.md](docs/SUBMONTHLY_STEERING.md). The distributed
 wind statistics do not constitute four independent agency environmental analyses.
+
+## Storm-level and height-gradient diagnostics
+
+The four-regime association uses 1,155 June–October storm anchors. An anchor is
+its first tropical-storm report at or north of 20°N, or the earliest westernmost
+report if it never reaches 20°N. Regime labels at these anchors enter the
+regime–recurvature contingency table, period logistic models, and the persistence
+analysis. Anchor-day persistence counts consecutive same-regime days up to the
+anchor and is left-censored at 1 June. These storm-weighted quantities differ
+from the equal-year seasonal regime statistics in Table S14.
+
+The height diagnostic uses the distributed 2.5° monthly 500-hPa height array.
+June–October annual means are differentiated using spherical distances and
+cosine-latitude area weights. The southern, western and northern regional
+comparisons have three-year blocks, 9,999 permutations, 4,999 bootstrap samples
+and seed 202406.
+
+From the science archive root, use new output locations:
+
+```bash
+python -B -m analysis hko-robustness . output_hko
+python -B -m analysis regime-logistic --root . --output output_logistic --make-anchors --inference
+python -B -m analysis regime-association results/circulation/submonthly_steering/storm_anchors_and_recurvature.csv regime_association.json
+python -B -m analysis regime-persistence results/circulation/submonthly_steering/storm_anchors_and_recurvature.csv data/processed/submonthly_steering/daily_regimes.csv regime_persistence.json
+python -B -m analysis height-gradient data/derived/circulation_monthly_coarse.npz height_gradient.json
+```
+
+The storm-anchor table, logistic summary, two association JSON files and height
+summary are under `results/circulation/`; the daily labels remain under
+`data/processed/submonthly_steering/`. These calculations use included inputs.
+[docs/ADDITIONAL_DIAGNOSTICS.md](docs/ADDITIONAL_DIAGNOSTICS.md) describes their
+sample definitions, resampling and output columns.
+
+The six-hourly trajectory baseline uses storm-centre winds. Its fitted parameters,
+annual track fields and baseline diagnostics are under `results/models/six_hourly/`.
+The winds retain storm circulation, and the simulated baseline does not reproduce
+the observed recurvature fractions. The calculation therefore describes model
+behaviour and its limitations. Reintegrating trajectories or refitting the motion
+parameters requires the external annual wind files described in
+[docs/SUBMONTHLY_STEERING.md](docs/SUBMONTHLY_STEERING.md); it cannot start from the
+included 2.5° daily regime fields.

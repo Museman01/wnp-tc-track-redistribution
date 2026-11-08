@@ -62,5 +62,17 @@ The included model, labels, daily fields, matched vectors, standard track tables
 comparison tables and figure arrays define the processed-data calculations.
 Fresh CDS retrievals can reflect later data updates and are not assumed to be
 byte-identical to the inputs used here. Re-extracting meteorological fields or
-reintegrating trajectories requires those external fields; trajectories driven
-by storm-center winds are not part of the results presented here.
+reintegrating trajectories requires those external fields; storm-centre wind-driven trajectory baselines and their limitations are supplied
+under `results/models/six_hourly/`. These trajectories use local bilinear winds,
+not the annulus environmental winds. The all-month primary sample has 812/738
+storms in the early/late periods. The common fitted deep-layer wind scale is
+0.292856, with residual motion −1.569234/+1.709509 m s⁻¹. Simulations advance in
+six-hour steps from the first qualified in-domain report, use elapsed lifetimes,
+and terminate at the domain boundary. Full model reintegration requires the
+external annual files, with all months and the year-following prefix for any
+trajectory crossing 31 December. Run `python -B -m analysis six-hourly-trajectories
+--root . --fields data/external/era5/six_hourly --output trajectory_results`; add
+`--refit` to estimate the motion parameters from the external winds. The default
+uses the supplied fitted parameters. Temporal resolution, grid, calibration and
+lifetime differ from the period-climatology model, so their baseline comparison
+does not isolate temporal resolution.

@@ -239,13 +239,13 @@ def figure2():
 
 def figure3():
 
-    f=np.load(_LAYOUT_ROOT / 'results/genesis/PRIMARY_fields.npz')
+    f=np.load(_LAYOUT_ROOT / 'results/tracks/track_point_contrast.npz')
 
     annual=pd.read_csv(ZV/'supplemental_validation/results/wnp_tc_redistribution_index_annual.csv')
 
     robust=pd.read_csv(ZV/'supplemental_validation/results/wnp_tc_robustness_matrix.csv')
 
-    lon_edges=f['lon_edges'];lat_edges=f['lat_edges'];change=f['total_field'].reshape(len(lat_edges)-1,len(lon_edges)-1)*100
+    lon_edges=f['lon_edges'];lat_edges=f['lat_edges'];change=f['difference'].reshape(len(lat_edges)-1,len(lon_edges)-1)*100
 
     vmax=np.nanmax(np.abs(change))
 
@@ -435,7 +435,7 @@ def figure6():
 
         ax.set(xticks=np.arange(4),xticklabels=['USA','JMA','CMA','HKO'])
 
-        # Marker-only legend entries for the agency series.
+        # Marker-only legend entries (the errorbar glyphs were hard to read).
 
         top_legends.append(ax.legend(handles=[Line2D([0],[0],marker='o',ls='none',color='0.25',ms=5,label='All events'),Line2D([0],[0],marker='s',ls='none',color='0.25',ms=5,label='First landfall')],frameon=False,loc='lower right'))
 
@@ -453,7 +453,7 @@ def figure6():
 
     axes[1,0].set(xticks=np.arange(3),xticklabels=rule_labels,ylabel='North-share change (percentage points)')
 
-    axes[1,0].legend(frameon=False,ncol=4);axes[1,0].set_ylim(2.0,11.3)  # Place the legend at the top with space for the panel letter.
+    axes[1,0].legend(frameon=False,ncol=4);axes[1,0].set_ylim(2.0,11.3)  # bottom in the reference layout; top leaves room for the panel letter
 
     for agency in AG4:
 
@@ -469,7 +469,7 @@ def figure6():
 
     axes[1,1].axvline(1996,color='0.4',ls='--',lw=0.9);axes[1,1].axhline(0,color='0.5',lw=0.8)
 
-    axes[1,1].set(xlabel='First year of late period',ylabel='First-landfall latitude change (°)');axes[1,1].set_ylim(0.4,1.58)  # Place the legend at the top with space for the panel letter.
+    axes[1,1].set(xlabel='First year of late period',ylabel='First-landfall latitude change (°)');axes[1,1].set_ylim(0.4,1.58)  # bottom in the reference layout; top leaves room for the panel letter
 
     status=[Line2D([0],[0],marker='o',linestyle='none',markerfacecolor='0.3',markeredgecolor='0.3',markersize=5,label='p < 0.05'),
 
@@ -496,44 +496,16 @@ def figure6():
 # ------------------------------------------------------------------ Figure 7
 
 def figure7():
-
-    """Diagnostic content with consistent figure typography (Arial, bold panel letters)."""
-
-    a=np.load(_LAYOUT_ROOT / 'results/tracks/absolute_track_point_change.npz');change=a['change'];lim=float(np.abs(change).max())
-
-    fig,axs=plt.subplots(1,2,figsize=(12,4.7),gridspec_kw={'width_ratios':[1,1.1]},constrained_layout=True)
-
-    m=axs[0].pcolormesh(a['lon_edges'],a['lat_edges'],change,cmap='RdBu_r',norm=TwoSlopeNorm(0,-lim,lim),shading='flat')
-
-    add_coast(axs[0],(100,0,180,40));format_geo_axes(axs[0]);axs[0].set_xticks([100,120,140,160,180])
-
-    fig.colorbar(m,ax=axs[0],label='1996–2025 minus 1966–1995\n(TS track points per year)',shrink=.8)
-
-    ax=axs[1];ax.set_axis_off()
-
-    boxes=[(.70,'Observed changes','Relative occupancy and absolute passage by latitude band\nTwo-period shoreline-crossing latitude contrast','#dbe8f2'),
-
-           (.38,'Statistical associations','Steering, adjusted-height and PDO covariance\nMonthly sampling decomposition','#e9ecef'),
-
-           (.06,'Processes requiring further tests','Storm-matched steering regimes, vortex structure,\nfine-scale starting positions and storm lifetime','#f2ead8')]
-
-    for y,title,body,color in boxes:
-
-        ax.add_patch(FancyBboxPatch((.03,y),.94,.24,boxstyle='round,pad=.015',facecolor=color,edgecolor='#65727d',linewidth=.7,transform=ax.transAxes))
-
-        ax.text(.5,y+.165,title,ha='center',va='center',fontweight='bold',transform=ax.transAxes,fontsize=10)
-
-        ax.text(.5,y+.07,body,ha='center',va='center',transform=ax.transAxes,fontsize=9,linespacing=1.4)
-
-    panel_letters39(axs)
-
-    save(fig,'Fig07_outlook_schematic',scale=1.10,dpi=320,number=7,title='Absolute track change and levels of evidence')
+    """Use the dedicated synthesis figure implementation for Figure 7."""
+    raise RuntimeError("Figure 7 uses analysis.figures.synthesis_figure; this entry is unavailable.")
 
 
 
 def figure5():
 
-    """Circulation fields with a 0.5 m s-1 reference vector and Raw/Detrended panel labels."""
+    """scripts/39 fig5 with two readability additions: a 0.5 m s-1 reference vector and the
+
+    names 'Raw' and 'Detrended' next to the panel letters. Data: circulation fields and regression results."""
 
     fields=np.load(ZV/'circulation_metric_validation/results/wnp_tc_circulation_fields.npz')
 
@@ -617,4 +589,8 @@ if __name__=='__main__':
 
     sys.argv.remove('--execute')
 
-    for k in (sys.argv[1:] or ['2','3','4','5','6']):globals()[f'figure{k}']()
+    selected = sys.argv[1:] or ['2','3','4','5','6']
+    if '7' in selected:
+        raise SystemExit('Figure 7 uses analysis.figures.synthesis_figure; this entry is unavailable.')
+    for k in selected:globals()[f'figure{k}']()
+

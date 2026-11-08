@@ -1,4 +1,4 @@
-'Synthesis figure.'
+'Synthesis figure (Figure 7): panel b adds the circulation association (double-headed link) and untested processes (dotted box) to the partitions, interpretation, and expressions.'
 from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
@@ -124,6 +124,10 @@ FRAME=(0.729,0.765,0.788)
 
 
 def draw(variant='overlay',out=None):
+    from pathlib import Path
+    output_root=Path(__file__).resolve().parents[2]
+    if out is None or not (PROJECT / out).resolve().is_relative_to(output_root):
+        raise ValueError('Provide an explicit output stem within the data root.')
 
     import matplotlib
 
@@ -143,7 +147,7 @@ def draw(variant='overlay',out=None):
 
     FONT=mf.FONT
 
-    W,H=672.0,292.0                     # Panel area 672 x 264 pt; legend row 28 pt.
+    W,H=672.0,428.0                     # reference figure width 672 pt; height for the colour bar below panel a and two legend rows in panel b
 
     fig=plt.figure(figsize=(W/72,H/72))
 
@@ -151,193 +155,167 @@ def draw(variant='overlay',out=None):
 
 
 
-    # ---- (a) map, same frame in the reference layout: x 26.3-350.6 pt, y 6.0-249.1 pt
-
-    ax=fig.add_axes([fx(26.3),fy(MAP_TOP+MAP_H),MAP_W/W,MAP_H/H])
-
+    # ---- (a) map, same frame in the reference layout: x 26.3-350.6 pt, y 15.75-239.35 pt; colour bar below the map
+    DY=(H-320.0)/2                    # centre panel a against the taller panel b
+    ax=fig.add_axes([fx(26.3),fy(MAP_TOP+DY+MAP_H),MAP_W/W,MAP_H/H])
     base=np.array(Image.open(BASE))
-
     ax.imshow(base,extent=EXTENT,origin='upper',aspect='auto',interpolation='lanczos',zorder=0)
-
     a=np.load(_LAYOUT_ROOT / 'results/tracks/absolute_track_point_change.npz')
-
     change=np.ma.masked_where(np.abs(a['change'])<0.25,a['change'])
-
     lim=2.0;ALPHA=0.6
-
-    if variant=='overlay':
-
-        m=ax.pcolormesh(a['lon_edges'],a['lat_edges'],change,cmap='RdBu_r',norm=TwoSlopeNorm(0,-lim,lim),shading='flat',alpha=ALPHA,zorder=1,linewidth=0,rasterized=True)
-
+    m=ax.pcolormesh(a['lon_edges'],a['lat_edges'],change,cmap='RdBu_r',norm=TwoSlopeNorm(0,-lim,lim),shading='flat',alpha=ALPHA,zorder=1,linewidth=0,rasterized=True)
     land=gpd.read_file(PROJECT/'data/raw/GSHHG/GSHHS_shp/i/GSHHS_i_L1.shp',bbox=(EXTENT[0],EXTENT[2],EXTENT[1],EXTENT[3]))
-
     land.boundary.plot(ax=ax,color='0.40',linewidth=0.3,zorder=2)
-
     ax.set_xlim(*EXTENT[:2]);ax.set_ylim(*EXTENT[2:])
-
     ax.set_xticks([100,120,140,160,180]);ax.set_yticks([0,10,20,30,40,50])
-
-    mf.format_geo_axes(ax);ax.tick_params(labelsize=8.6,width=0.8,length=2.4)
-
+    mf.format_geo_axes(ax);ax.tick_params(labelsize=9.0,width=0.8,length=2.4)
     for s in ax.spines.values():s.set_linewidth(0.7)
-
     lon=lambda x:100+(x-26.3)/4.054;lat=lambda y:(249.1-y)/4.862   # reference PDF points to degrees
-
     halo=[pe.withStroke(linewidth=2.6,foreground='white',alpha=0.85)]
-
     ax.add_patch(FancyArrowPatch((lon(280.0),lat(185.2)),(lon(149.3),lat(168.2)),connectionstyle='arc3,rad=0.12',
-
         arrowstyle='-|>,head_length=4.2,head_width=2.6',color=WEST,lw=3.4,zorder=4,shrinkA=0,shrinkB=0))
-
     ax.add_patch(FancyArrowPatch((lon(264.0),lat(155.8)),(lon(205.3),lat(66.0)),connectionstyle='arc3,rad=-0.28',
-
         arrowstyle='-|>,head_length=4.0,head_width=2.4',color=RECURVE,lw=4.4,zorder=4,shrinkA=0,shrinkB=0))
-
     ax.add_patch(FancyArrowPatch((lon(129.6),lat(128.0)),(lon(129.6),lat(90.0)),arrowstyle='-|>,head_length=4.4,head_width=2.2',
-
         color=LANDFALL,lw=1.6,zorder=4,shrinkA=0,shrinkB=0))
-
-    t=dict(fontsize=8.6,zorder=5,path_effects=halo)
-
+    t=dict(fontsize=9.0,zorder=5,path_effects=halo)
     ax.text(lon(237.1),lat(212.1),'Low-latitude westward corridor',color=WEST_TEXT,ha='center',va='center',**t)
-
     ax.text(lon(237.1),lat(227.5),'fewer passages',color=WEST_TEXT,ha='center',va='center',style='italic',**t)
-
     ax.text(lon(285.7),lat(95.4),'Recurving corridor',color=RECURVE_TEXT,ha='center',va='center',**t)
-
     ax.text(lon(285.7),lat(110.9),'larger relative share',color=RECURVE_TEXT,ha='center',va='center',style='italic',**t)
-
-    ax.text(lon(136.5),lat(112.2),'poleward shift in',color=LANDFALL,ha='left',va='center',**{**t,'fontsize':8.2})
-
-    ax.text(lon(136.5),lat(122.9),'landfall latitude',color=LANDFALL,ha='left',va='center',**{**t,'fontsize':8.2})
-
-    if variant=='overlay':   # colour bar in the open ocean north of the track-density domain
-
-        ax.add_patch(Rectangle((0.655,0.80),0.338,0.19,transform=ax.transAxes,facecolor='white',edgecolor='none',alpha=0.85,zorder=6))
-
-        cax=ax.inset_axes([0.685,0.845,0.28,0.028],zorder=7)
-
-        cb=fig.colorbar(m,cax=cax,orientation='horizontal',extend='both',ticks=[-2,-1,0,1,2])
-
-        cb.solids.set_alpha(ALPHA);cb.outline.set_linewidth(0.5)
-
-        cax.tick_params(labelsize=7.2,length=1.8,width=0.5,pad=1.2)
-
-        cax.set_title('Track points per year\n1996–2025 minus 1966–1995',fontsize=7.2,pad=2.5,linespacing=1.15)
-
+    ax.text(lon(136.5),lat(112.2),'Poleward shift in',color=LANDFALL,ha='left',va='center',**{**t,'fontsize':8.6})
+    ax.text(lon(136.5),lat(122.9),'landfall latitude',color=LANDFALL,ha='left',va='center',**{**t,'fontsize':8.6})
+    cax=fig.add_axes([fx(98.0),fy(266.0+DY),180.0/W,6.5/H])
+    cb=fig.colorbar(m,cax=cax,orientation='horizontal',extend='both',ticks=[-2,-1,0,1,2])
+    cb.solids.set_alpha(ALPHA);cb.outline.set_linewidth(0.5)
+    cax.tick_params(labelsize=9.0,length=1.8,width=0.5,pad=1.2)
+    cb.ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v,_:f'{v:g}'.replace('-','−')))
+    cax.set_xlabel('Difference in mean annual track-point count\nper 2.5° × 2.5° grid cell\n1996–2025 minus 1966–1995',fontsize=9.0,labelpad=2.5,linespacing=1.2)
     ax.text(0.012,0.985,'a',transform=ax.transAxes,ha='left',va='top',fontsize=13,fontweight='bold',zorder=8)
 
-
-
-    # ---- (b) flow chart, frame in the reference layout: x 364.7-667.6 pt, y 7.2-247.9 pt (+ legend row)
-
-    bx=fig.add_axes([fx(364.7),fy(276.0),(667.6-364.7)/W,(276.0-7.2)/H]);bx.set_xlim(364.7,667.6);bx.set_ylim(276.0,7.2);bx.set_axis_off()
-
-    bx.add_patch(Rectangle((364.7,7.2),302.9,240.7,facecolor='none',edgecolor=FRAME,lw=0.8,ls=(0,(2.4,1.6))))
-
-    def box(x0,y0,x1,y1,kind,lines,size=8.8):
-
-        style=dict(obs=dict(fc=OBS_FILL,ec=OBS_EDGE,ls='-',tc='white'),assoc=dict(fc=ASSOC_FILL,ec=ASSOC_EDGE,ls='-',tc=ASSOC_TEXT),
-
-                   open=dict(fc='white',ec=OPEN_EDGE,ls=(0,(4.07,1.76)),tc=OPEN_TEXT))[kind]
-
-        bx.add_patch(FancyBboxPatch((x0,y0),x1-x0,y1-y0,boxstyle='round,pad=0,rounding_size=4.5',facecolor=style['fc'],edgecolor=style['ec'],lw=1.1,ls=style['ls'],mutation_aspect=1))
-
-        n=len(lines);step=size*1.22;yc=(y0+y1)/2
-
-        for i,(text,kw) in enumerate(lines):
-
-            bx.text((x0+x1)/2,yc+(i-(n-1)/2)*step,text,ha='center',va='center',color=style['tc'],fontsize=kw.get('size',size),style=kw.get('style','normal'))
-
-    def arrow(p,q,dashed=False,both=False,color=ARROW,lw=1.2):
-
-        bx.add_patch(FancyArrowPatch(p,q,arrowstyle=('<|-|>' if both else '-|>')+',head_length=4.4,head_width=2.2',color=color,lw=lw,
-
-            ls=(0,(3.2,2.0)) if dashed else '-',shrinkA=0,shrinkB=0,zorder=3))
-
-    L=lambda s,**k:(s,k)
-
-    # Row 1: statistical associations
-
-    box(377.9,12.8,654.4,48.0,'assoc',[L('PDO, steering flow, and background-adjusted height'),L('covary with the annual redistribution index (Figure 5)',size=8.0)])
-
-    # Row 2: not resolved by the present diagnostics
-
-    box(368.7,66.0,510.6,113.0,'open',[L('Monthly-mean steering'),L('contribution unresolved'),L('(trajectory-model baseline bias)',size=8.0)])
-
-    box(521.6,66.0,663.6,113.0,'open',[L('Untested processes'),L('within-regime steering patterns,',size=8.0),L('vortex structure, starting position,',size=8.0),L('storm lifetime and termination',size=8.0)])
-
-    # Row 3 and 4: observed changes
-
-    box(390.1,140.0,642.2,174.0,'obs',[L('Relative track composition',size=9.2),L('lower low-latitude share, higher share at 20°–40°N',size=8.0)])
-
-    box(368.7,197.6,510.6,236.0,'obs',[L('Landfall latitude and'),L('coast composition'),L('first landfall +0.9° to +1.4°',size=8.0)])
-
-    box(521.6,197.6,663.6,236.0,'obs',[L('Upper-ocean thermal'),L('exposure along the path'),L('net change unresolved',size=8.0)])
-
-    # Links
-
-    arrow((439.6,48.0),(439.6,65.6),dashed=True);arrow((592.6,48.0),(592.6,65.6),dashed=True)
-
-    arrow((439.6,113.0),(452.0,139.6),dashed=True);arrow((592.6,113.0),(580.0,139.6),dashed=True)
-
-    arrow((516.1,48.4),(516.1,139.6),both=True,color=ASSOC_EDGE,lw=1.3)
-
-    arrow((452.0,174.0),(439.6,197.2));arrow((580.0,174.0),(592.6,197.2))
-
-    # Legend row
-
-    def key(x,kind,label):
-
-        fc,ec,ls={'obs':(OBS_FILL,OBS_EDGE,'-'),'assoc':(ASSOC_FILL,ASSOC_EDGE,'-'),'open':('white',OPEN_EDGE,(0,(2.6,1.2)))}[kind]
-
-        bx.add_patch(FancyBboxPatch((x,256.5),16,9,boxstyle='round,pad=0,rounding_size=2',facecolor=fc,edgecolor=ec,lw=0.9,ls=ls))
-
-        bx.text(x+20,261.0,label,va='center',ha='left',fontsize=8.0,color='#222222')
-
-    key(366.0,'obs','Observed change');key(457.0,'assoc','Statistical association');key(562.0,'open','Unresolved or untested')
-
-    bx.text(366.8,21.5,'b',ha='left',va='center',fontsize=13,fontweight='bold')
-
+    # ---- (b) shared result, statistical analyses, interpretation, untested processes, and expressions
+    BS,TS=9.8,10.4
+    SB,ST=9.4,10.0                      # body and title sizes in the three narrow boxes
+    YB=H-3.0
+    bx=fig.add_axes([fx(364.7),fy(YB),(667.6-364.7)/W,(YB-4.0)/H])
+    bx.set_xlim(364.7,667.6);bx.set_ylim(YB,4.0);bx.set_axis_off()
+    placed=[]
+    def box(x0,y0,x1,y1,kind,items):
+        styles={
+            'observed':('#315b83','#234360','white','solid',1.0),
+            'partition':('#eae5d6','#97875f','#39362b','solid',1.0),
+            'interpretation':('#f4f7fa','#315b83','#234360',(0,(4,2.5)),1.2),
+            'untested':('#ffffff','#7d8285','#4a4f52',(0,(1,2)),1.3),
+            'expression':('#dce6ef','#7795ad','#294354','solid',1.0),
+        }
+        fc,ec,tc,ls,lw=styles[kind]
+        bx.add_patch(FancyBboxPatch((x0,y0),x1-x0,y1-y0,
+            boxstyle='round,pad=0,rounding_size=4.5',facecolor=fc,edgecolor=ec,lw=lw,linestyle=ls))
+        for text,offset,size,weight in items:
+            artist=bx.text((x0+x1)/2,y0+offset,text,ha='center',va='center',
+                fontsize=size,fontweight=weight,color=tc)
+            placed.append(((x0,y0,x1,y1),artist))
+    def segment(x0,y0,x1,y1,ls='solid'):
+        bx.plot([x0,x1],[y0,y1],color='#62696c',lw=.85,linestyle=ls,solid_capstyle='butt',zorder=1)
+    def arrow(x0,y0,x1,y1,style='-|>',ls='solid'):
+        bx.add_patch(FancyArrowPatch((x0,y0),(x1,y1),arrowstyle=style,
+            mutation_scale=8,lw=.85,color='#62696c',linestyle=ls,shrinkA=0,shrinkB=0,zorder=2))
+    X0,X1=368.7,663.6
+    GAP=6.0;CW=(X1-X0-2*GAP)/3
+    c1=(X0,X0+CW);c2=(X0+CW+GAP,X0+2*CW+GAP);c3=(X1-CW,X1)
+    m1=sum(c1)/2;m2=sum(c2)/2;m3=sum(c3)/2;m12=(c1[0]+c2[1])/2
+    L,R=440.45,591.85                  # centres of the two expression boxes, for the two coastal and ocean expressions
+    # row 1: shared observed result
+    box(X0,12,X1,57,'observed',[
+        ('Shared shift toward higher-latitude pathways',16,10.8,'bold'),
+        ('Relative track composition across four agencies',32,BS,'normal')])
+    # row 2: two partitions (arrows) and one association (double-headed line, no causal direction)
+    Y2,Y2b=92,214
+    segment(m12,57,m12,66);segment(m1,66,m2,66)
+    arrow(m1,66,m1,Y2-2);arrow(m2,66,m2,Y2-2)
+    bx.text(m12,78,'Partitions',ha='center',va='center',fontsize=BS,color='#555d61')
+    arrow(m3,57,m3,Y2-2,style='<|-|>')
+    bx.text(m3-6,74,'Association',ha='right',va='center',fontsize=BS,color='#555d61')
+    box(c1[0],Y2,c1[1],Y2b,'partition',[
+        ('Genesis-bin',13,ST,'bold'),('partition',26,ST,'bold'),
+        ('74%–80%',50,16,'bold'),
+        ('of projected',73,SB,'normal'),('contrast in',87,SB,'normal'),
+        ('conditional',101,SB,'normal'),('track fields',114,SB,'normal')])
+    box(c2[0],Y2,c2[1],Y2b,'partition',[
+        ('Six-hourly',13,ST,'bold'),('steering',26,ST,'bold'),
+        ('Primary record,',45,SB,'normal'),('June–October',59,SB,'normal'),
+        ('Path changes lie',78,SB,'normal'),('mainly within',92,SB,'normal'),
+        ('defined regimes',106,SB,'normal')])
+    box(c3[0],Y2,c3[1],Y2b,'partition',[
+        ('Circulation',13,ST,'bold'),('association',26,ST,'bold'),
+        ('PDO and zonal',50,SB,'normal'),('steering covary',64,SB,'normal'),
+        ('with the index;',78,SB,'normal'),('causal order',97,SB,'normal'),
+        ('not tested',111,SB,'normal')])
+    # row 3: spatial interpretation of the partitions; untested processes below the association
+    Y3,Y3b=252,320
+    segment(m1,Y2b,m1,Y2b+8);segment(m2,Y2b,m2,Y2b+8);segment(m1,Y2b+8,m2,Y2b+8)
+    arrow(m12,Y2b+8,m12,Y3-2)
+    bx.text(m12+6,Y2b+22,'Interpretation',ha='left',va='center',fontsize=BS,color='#555d61')
+    box(c1[0],Y3,c2[1],Y3b,'interpretation',[
+        ('Different routes can share',14,TS,'bold'),
+        ('broad genesis regions',28,TS,'bold'),
+        ('Regional track shares can shift',44,BS,'normal'),
+        ('in opposite directions',57,BS,'normal')])
+    arrow(m3,Y2b,m3,Y3-2,ls=(0,(2,2)))
+    box(c3[0],Y3,c3[1],Y3b,'untested',[
+        ('Untested',14,ST,'bold'),('processes',27,ST,'bold'),
+        ('Circulation-to-',44,SB,'normal'),('track links',57,SB,'normal')])
+    # row 4: along-track expressions of the shared shift
+    Y4,Y4b=356,420
+    segment(m12,Y3b,m12,Y3b+10);segment(L,Y3b+10,R,Y3b+10)
+    arrow(L,Y3b+10,L,Y4-2);arrow(R,Y3b+10,R,Y4-2)
+    bx.text((L+R)/2,Y3b+23,'Along-track expressions',ha='center',va='center',fontsize=BS,color='#555d61')
+    box(368.7,Y4,512.2,Y4b,'expression',[
+        ('Coastal displacement',15,TS,'bold'),
+        ('Higher mean first-landfall',34,BS,'normal'),
+        ('latitude in the later period',49,BS,'normal')])
+    box(520.1,Y4,663.6,Y4b,'expression',[
+        ('Upper-ocean exposure',12,TS,'bold'),
+        ('Path and ocean changes',27,BS,'normal'),
+        ('act in opposite directions;',41,BS,'normal'),
+        ('net change unresolved',55,BS,'normal')])
+    bx.text(355.8,6,'b',ha='left',va='top',fontsize=13,fontweight='bold')
+    fig._fig7_placed=(bx,placed)
     for t in fig.findobj(match=matplotlib.text.Text):t.set_fontfamily(FONT)
 
-    meta={'Title':'Pathway change and levels of evidence','Subject':'Journal of Geophysical Research: Atmospheres Figure 7','Creator':'Matplotlib'}
+    fig.canvas.draw()
+    renderer=fig.canvas.get_renderer()
+    min_margin=1e9
+    for (x0,y0,x1,y1),artist in placed:
+        bb=artist.get_window_extent(renderer).transformed(bx.transData.inverted())
+        left,right=sorted([bb.x0,bb.x1]);top,bottom=sorted([bb.y0,bb.y1])
+        margin=min(left-x0,x1-right,top-y0,y1-bottom)
+        min_margin=min(min_margin,margin)
+        assert margin>=3,(artist.get_text(),margin)
+    print('Minimum box-text margin',round(min_margin,2),'pt')
+
+    meta={'Title':'Pathway change, statistical analyses, and untested processes','Subject':'Journal of Geophysical Research: Atmospheres Figure 7','Creator':'Matplotlib'}
 
     stem=out or 'figures/Fig07_outlook_schematic'
 
     fig.savefig(output_path(stem+'.png'),dpi=600,bbox_inches='tight',pad_inches=0.02)
-
     fig.savefig(output_path(stem+'.pdf'),bbox_inches='tight',pad_inches=0.02,metadata=meta,dpi=600)
 
     plt.close(fig)
-
-    if out:print(stem);plt.close(fig);return
-
-    write_json('results/diagnostics/synthesis_figure.json',dict(status='PASS',variant=variant,layout='672 x 264 pt panel area; 28-pt legend row',
-
-        shading='results/tracks/absolute_track_point_change.npz, cells with |change|<0.15 masked, colour limits +/-2 track points per year (extend both)',
-
-        evidence_levels=dict(observed=['Relative track composition','Landfall latitude and coast composition','Upper-ocean thermal exposure along the path'],
-
-            association=['PDO, steering flow, and background-adjusted height covary with the annual redistribution index'],
-
-            unresolved_or_untested=['Monthly-mean steering contribution','Within-regime steering patterns, vortex structure, starting position, storm lifetime and termination'])))
-
-    print('Figure 7 written')
-
-
+    print('Figure saved:',stem)
+    if not out:
+        write_json('results/diagnostics/synthesis_figure.json',dict(
+            status='PASS',variant=variant,canvas_points=[672,428],
+            shading_threshold=0.25,
+            shading='Mean annual tropical-storm-qualified track-point count change per 2.5-degree cell',
+            evidence_levels=dict(
+                observed='Shared relative pathway shift across four agency records',
+                statistical=['Genesis-bin storm-equal partition','June-October primary-record steering-regime partition'],
+                interpretation=['Different routes can share broad genesis regions','Regional track shares can shift in opposite directions'],
+                expressions=['First-landfall latitude','Upper-ocean exposure'])) )
 
 if __name__=='__main__':
-
-    import sys
-
     if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
+        raise SystemExit('Explicit execution required: add --execute.')
     sys.argv.remove('--execute')
-
-    
-
     {'download':download,'build':build,'draw':draw}[sys.argv[1]](*sys.argv[2:])
-

@@ -1,8 +1,7 @@
 cff-version: 1.2.0
 message: If you use this software, please cite this version of the software.
-title: Analysis code for post-genesis tropical-cyclone track redistribution in the
-  western North Pacific
-version: '1.3'
+title: "Analysis code and data for “Life-Cycle Redistribution of Western North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude: Cross-Agency Evidence From 1966–2025”"
+version: '1.3.1'
 license: MIT
 type: software
 repository-code: https://github.com/Museman01/wnp-tc-track-redistribution
@@ -10,13 +9,11 @@ authors:
 - family-names: Huang
   given-names: Daizhao
   orcid: https://orcid.org/0009-0009-6759-613X
-  affiliation: Guangxi Laboratory on the Study of Coral Reefs in the South China Sea,
-    School of Marine Sciences, Guangxi University
+  affiliation: Guangxi Laboratory on the Study of Coral Reefs in the South China Sea, Coral Reef Research Center of China, School of Marine Sciences, Guangxi University, Nanning, China
 - family-names: Yue
   given-names: Yuanfu
   orcid: https://orcid.org/0000-0002-5248-0056
-  affiliation: Guangxi Laboratory on the Study of Coral Reefs in the South China Sea,
-    School of Marine Sciences, Guangxi University
+  affiliation: Guangxi Laboratory on the Study of Coral Reefs in the South China Sea, Coral Reef Research Center of China, School of Marine Sciences, Guangxi University, Nanning, China
 keywords:
 - tropical cyclone
 - track redistribution
