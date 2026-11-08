@@ -51,7 +51,8 @@ respective observational and model assumptions.
 ## Code and data
 
 The source code is organized by scientific topic, with shared utilities and
-numerical tests. The accompanying science archive supplies the same source code,
+numerical tests. The accompanying [science archive](https://doi.org/10.5281/zenodo.24054172)
+supplies the same source code,
 scientific configurations, observations and regional input subsets, numerical
 results, and seven main and twenty-one supplementary figures.
 
@@ -143,7 +144,8 @@ shorelines and relief-map inputs.
 Please cite the software using [CITATION.cff](CITATION.cff), and cite the original
 data products used in your analysis.
 
-Huang, D., & Yue, Y. (2026). *Analysis code and data for “Life-Cycle Redistribution of Western North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude: Cross-Agency Evidence From 1966–2025”* (Version 1.3.1) [Software and data].
+Huang, D., & Yue, Y. (2026). *Analysis code and data for “Life-Cycle Redistribution of Western North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude: Cross-Agency Evidence From 1966–2025”* (Version 1.3.1) [Software and data]. Zenodo.
+[doi:10.5281/zenodo.24054172](https://doi.org/10.5281/zenodo.24054172).
 [Source repository](https://github.com/Museman01/wnp-tc-track-redistribution).
 
 Software is released under the [MIT License](LICENSE). Project-generated

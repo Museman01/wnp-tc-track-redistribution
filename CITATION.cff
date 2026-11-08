@@ -2,6 +2,7 @@ cff-version: 1.2.0
 message: If you use this software, please cite this version of the software.
 title: "Analysis code and data for “Life-Cycle Redistribution of Western North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude: Cross-Agency Evidence From 1966–2025”"
 version: '1.3.1'
+doi: 10.5281/zenodo.24054172
 license: MIT
 type: software
 repository-code: https://github.com/Museman01/wnp-tc-track-redistribution
