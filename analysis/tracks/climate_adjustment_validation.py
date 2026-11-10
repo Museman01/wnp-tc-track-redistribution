@@ -106,15 +106,18 @@ def stratified_test(composition, mask, early, *, nperm, seed):
 
 
 
-def run():
+def run(output_dir, composition_path=None):
+
+    from pathlib import Path
+    from core.paths import create_new_output_dir
 
     cfg = load_config()
 
-    out = _LAYOUT_ROOT / 'results/tracks' / "05_climate_mode_adjustment"
+    out = create_new_output_dir(output_dir)
 
-    out.mkdir(parents=True, exist_ok=True)
+    composition_path = Path(composition_path) if composition_path else PROJECT / "data" / "reference" / "agency_comparison" / "03_common_storms" / "annual_path_composition_2p5deg.npz"
 
-    zfile = np.load(_LAYOUT_ROOT / 'results/tracks' / "03_common_storms" / "annual_path_composition_2p5deg.npz")
+    zfile = np.load(composition_path)
 
     years = zfile["years"].astype(int)
 
@@ -226,12 +229,14 @@ def run():
 
 if __name__ == "__main__":
 
-    import sys
+    from pathlib import Path
+    import argparse
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    run()
+    parser = argparse.ArgumentParser(description="Climate-mode adjustment validation.")
+    parser.add_argument("--execute", action="store_true", help="confirm execution")
+    parser.add_argument("--output-dir", required=True, help="new project-local output directory")
+    parser.add_argument("--composition", type=Path, help="annual composition NPZ")
+    args = parser.parse_args()
+    if not args.execute:
+        parser.error("add --execute to write outputs")
+    run(args.output_dir, args.composition)

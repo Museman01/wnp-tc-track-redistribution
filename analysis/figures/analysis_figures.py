@@ -1,7 +1,6 @@
 'Track, circulation and activity figures. ERA5 pressure-level inputs cover 80–180°E, 0–65°N.'
 import os
 import glob
-import shutil
 import importlib
 from pathlib import Path
 import numpy as np
@@ -13,12 +12,14 @@ import pymannkendall as mk
 from scipy import stats
 from matplotlib.collections import LineCollection
 from matplotlib.lines import Line2D
+from core.paths import PROJECT
 from core.utils import load_config
 from core.stats_utils import theil_sen_ci
 import analysis.figures.figure_style as fs
 
 cfg = load_config()
 P = cfg["paths"]["processed"]
+RESULT_DIR = Path(P)
 I = cfg["paths"]["interim"]
 RAW = cfg["paths"]["raw"]
 SEASON = cfg["typhoon_season"]
@@ -117,47 +118,15 @@ def _metric_trend_stats(g, panels):
         g, panels, "Benjamini-Hochberg FDR across four annual track-metric MK tests")
 
 
-def _fmt_p(v):
-    if not np.isfinite(v):
-        return "NA"
-    return "<0.001" if v < 0.001 else f"{v:.3f}"
 
 
-def _fmt_num(v, nd=2):
-    return "NA" if not np.isfinite(v) else f"{v:.{nd}f}"
 
 
-def _plot_trend_panel(ax, g, c, title, start, stats_row, *, show_legend=False):
-    """Display early records but fit and label trends only over the formal period."""
-    display_start = cfg["periods"]["record_start"]
-    display = g[g.season >= display_start].dropna(subset=[c])
-    early = display[display.season < start]
-    if len(early):
-        ax.plot(early["season"], early[c], lw=1.15, ls=":",
-                color=fs.MONET[0], alpha=0.42)
-    sub = display[display.season >= start]
-    _sen(ax, sub["season"], sub[c])
-    star = "*" if np.isfinite(stats_row["mk_p_fdr_bh"]) and stats_row["mk_p_fdr_bh"] < 0.05 else ""
-    ax.set_title(
-        f"{title}\n"
-        f"Sen={stats_row['sen_slope_per_decade']:.3g}/dec "
-        f"({start}-{int(stats_row['end'])}); "
-        f"r={_fmt_num(stats_row['pearson_r'])}; "
-        f"MK p={_fmt_p(stats_row['mk_p_raw'])}; "
-        f"FDR={_fmt_p(stats_row['mk_p_fdr_bh'])}{star}",
-        fontsize=7.6)
-    ax.set_xlabel("Year")
-    ax.set_xlim(display_start - 2, g["season"].max() + 2)
-    if show_legend:
-        ax.plot([], [], lw=1.15, ls=":", color=fs.MONET[0], alpha=0.42,
-                label="Early record (excluded)")
-        ax.plot([], [], lw=1.4, color=fs.MONET[0], label="Trend-test period")
-        ax.legend(loc="best", fontsize=5.8, handlelength=2.4)
 
 
 # ---------------- 路径密度的年代际演变 ----------------
 def fig01():
-    files = sorted(glob.glob(f"{P}/density_dec_*.npz"))
+    files = sorted(glob.glob(f"{P}/track_density/density_dec_*.npz"))
     n = len(files)
     ncol = 3
     nrow = int(np.ceil(n / ncol))
@@ -189,7 +158,8 @@ def fig01():
             txt.set_path_effects([pe.withStroke(linewidth=0.9, foreground="white")])
         pm = ax.pcolormesh(d["lon"], d["lat"], d["dens"], cmap=fs.SEQ,
                            vmin=0, vmax=vmax)
-        # Captions identify decades and valid-year counts; panels use letter labels.
+        # Decade and valid-year labels are moved to the caption; the panel is
+        # identified only by its letter in the figure.
         fs.panel_letter(ax, "abcdefghijklmnopqrstuvwxyz"[idx])
     for ax in axes.ravel()[n:]:
         ax.axis("off")
@@ -206,8 +176,8 @@ def fig01():
 def fig02():
     order = ["El_Nino", "La_Nina", "Neutral"]
     phase_labels = {"El_Nino": "El Niño", "La_Nina": "La Niña", "Neutral": "Neutral"}
-    dat = {ph: np.load(f"{P}/density_phase_{ph}.npz") for ph in order
-           if os.path.exists(f"{P}/density_phase_{ph}.npz")}
+    dat = {ph: np.load(f"{P}/track_density/density_phase_{ph}.npz") for ph in order
+           if os.path.exists(f"{P}/track_density/density_phase_{ph}.npz")}
     vmax = max(d["dens"].max() for d in dat.values())
     fig = plt.figure(figsize=(fs.COL2 * 1.12, fs.COL2 * 0.66))
     gs = fig.add_gridspec(3, 2, height_ratios=[1, 1, 0.075],
@@ -249,7 +219,7 @@ def fig02():
 
 # ---------------- 路径分型结果 ----------------
 def fig03():
-    cl = pd.read_csv(f"{P}/track_clusters.csv")
+    cl = pd.read_csv(f"{P}/clustering/track_clusters.csv")
     tr = pd.read_csv(f"{P}/tracks.csv", parse_dates=["iso_time"])
     tr = tr.merge(cl[["sid", "cluster"]], on="sid", how="inner")
     k = int(cl["cluster"].max()) + 1
@@ -288,7 +258,7 @@ def fig03():
 
 # ---------------- 各型对应环流合成 ----------------
 def fig04():
-    cl = pd.read_csv(f"{P}/track_clusters.csv")
+    cl = pd.read_csv(f"{P}/clustering/track_clusters.csv")
     s = pd.read_csv(f"{P}/storms.csv", parse_dates=["genesis_time"]).merge(
         cl[["sid", "cluster"]], on="sid")
     st = xr.open_dataset(f"{I}/steering.nc")
@@ -414,13 +384,11 @@ def fig05():
     fig.subplots_adjust(left=0.10, right=0.90, bottom=0.19, top=0.98,
                         hspace=0.20, wspace=0.16)
 
-    pd.DataFrame(trend_rows).to_csv(
-        fs.FIGDIR / "analysis_subtropical_high_trend_stats.csv", index=False)
+    target = RESULT_DIR / "analysis_subtropical_high_trend_stats.csv"
+    if target.exists():raise FileExistsError(target)
+    RESULT_DIR.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(trend_rows).to_csv(target, index=False)
     fs.save(fig, "analysis_subtropical_high.png")
-    for ext in ("png", "pdf"):
-        shutil.copyfile(
-            fs.FIGDIR / f"analysis_subtropical_high.{ext}",
-            fs.FIGDIR / f"analysis_subtropical_high_overview.{ext}")
 
 
 # ---------------- 路径指标年际变化与趋势 ----------------
@@ -437,7 +405,10 @@ def fig06():
         ("landfalls", "Total Landfalls", cfg["periods"]["freq_start"]),
     ]
     trend_stats = _metric_trend_stats(g, panels)
-    trend_stats.to_csv(f"{P}/metric_trend_statistics.csv", index=False)
+    target = RESULT_DIR / "metric_trend_statistics.csv"
+    if target.exists():raise FileExistsError(target)
+    RESULT_DIR.mkdir(parents=True, exist_ok=True)
+    trend_stats.to_csv(target, index=False)
     stats_by_var = trend_stats.set_index("var").to_dict("index")
 
     def fmt_p(v):
@@ -591,7 +562,7 @@ def fig09():
         "China_E", "China_S", "Taiwan", "Japan", "Korea",
         "Philippines", "Vietnam"
     ]
-    # Match the coast-mask colours used in Figure 1.
+    # Match the coast-mask colors used in Fig01_study_domains_redrawn.
     # Keep "Other" neutral because it has no corresponding mask in Fig. 1.
     coast_colors = {
         "China_E": "#4E9BC0",
@@ -629,15 +600,11 @@ def fig09():
               ncol=1, fontsize=6)
     fig.subplots_adjust(left=0.11, right=0.80, bottom=0.20, top=0.94)
     fs.save(fig, "analysis_landfall_by_coast.png")
-    for ext in ("png", "pdf"):
-        shutil.copyfile(
-            fs.FIGDIR / f"analysis_landfall_by_coast.{ext}",
-            fs.FIGDIR / f"FigS16_landfall_by_coast.{ext}")
 
 
 # ---------------- 生成/路径/热带阶段终止三联密度 ----------------
 def fig10():
-    d = np.load(f"{P}/lifecycle_density.npz")
+    d = np.load(f"{P}/lifecycle/lifecycle_density.npz")
     panels = [("genesis", "Genesis"), ("track", "Track (Tropical TS)"),
               ("tropical_end", "Tropical End")]
     fig = plt.figure(figsize=(fs.COL2 * 1.24, fs.COL1 * 0.75))
@@ -674,7 +641,7 @@ def fig10():
 
 # ---------------- 移速/路径长度/生命期分布 ----------------
 def fig11():
-    d = pd.read_csv(f"{P}/track_distributions.csv")
+    d = pd.read_csv(f"{P}/lifecycle/track_distributions.csv")
     panels = [("trans_speed", "Translation Speed (km/h)"),
               ("track_len_km", "Track Length (km)"), ("lifetime_h", "Lifetime (h)")]
     fig = plt.figure(figsize=(fs.COL2 * 0.86, fs.COL2 * 0.68))
@@ -708,9 +675,9 @@ def fig11():
 
 # ---------------- 转向点气候态与转向比例 ----------------
 def fig12():
-    dens = np.load(f"{P}/recurvature_density.npz")
-    monthly = pd.read_csv(f"{P}/recurvature_monthly.csv")
-    annual = pd.read_csv(f"{P}/recurvature_annual.csv")
+    dens = np.load(f"{P}/recurvature/recurvature_density.npz")
+    monthly = pd.read_csv(f"{P}/recurvature/recurvature_monthly.csv")
+    annual = pd.read_csv(f"{P}/recurvature/recurvature_annual.csv")
     annual.columns = ["season", "recurv"]
     fig = plt.figure(figsize=(fs.COL2 * 0.90, fs.COL2 * 0.82))
     gs = fig.add_gridspec(3, 2, height_ratios=[1, 0.10, 1],
@@ -750,9 +717,9 @@ def fig12():
 
 # ---------------- 登陆气候学（比例/强度/海岸） ----------------
 def fig13():
-    frac = pd.read_csv(f"{P}/landfall_fraction_annual.csv")
+    frac = pd.read_csv(f"{P}/landfall/landfall_fraction_annual.csv")
     lf = pd.read_csv(f"{P}/landfalls.csv")
-    bycoast = pd.read_csv(f"{P}/landfall_by_coast.csv")
+    bycoast = pd.read_csv(f"{P}/landfall/landfall_by_coast.csv")
     fig, axes = plt.subplots(
         1, 3, figsize=(fs.COL2 * 1.18, fs.COL1 * 1.12),
         gridspec_kw={"width_ratios": [1, 1, 1.35], "wspace": 0.32})
@@ -798,9 +765,9 @@ def fig13():
 
 # ---------------- 各分型平均路径与季节/位相占比 ----------------
 def fig14():
-    mt = np.load(f"{P}/cluster_mean_tracks.npz")
-    monthly = pd.read_csv(f"{P}/cluster_monthly.csv")
-    phase = pd.read_csv(f"{P}/cluster_phase.csv")
+    mt = np.load(f"{P}/cluster_profiles/cluster_mean_tracks.npz")
+    monthly = pd.read_csv(f"{P}/cluster_profiles/cluster_monthly.csv")
+    phase = pd.read_csv(f"{P}/cluster_profiles/cluster_phase.csv")
     mcols = [c for c in monthly.columns if c.startswith("membership_c")]
     k = len(mcols)
     fig = plt.figure(figsize=(fs.COL2 * 0.90, fs.COL2 * 0.72))
@@ -966,14 +933,19 @@ FIGURES = [fig01, fig02, fig03, fig04, fig05, fig06, fig07,
            figS25, figS26, figS27]
 
 
-def main():
-    os.makedirs(str(fs.FIGDIR), exist_ok=True)
+def main(output_dir):
+    global RESULT_DIR
+    root=(PROJECT / output_dir).resolve()
+    if not root.is_relative_to(PROJECT.resolve()):raise ValueError('Output directory must remain within the project')
+    root.mkdir(parents=True,exist_ok=False)
+    fs.FIGDIR=root/'figures'
+    RESULT_DIR=root/'tables'
     for fn in FIGURES:
-        try:
-            fn()
-        except Exception as e:                       # 单图失败不影响其余
-            print(f"[FAIL] {fn.__name__}: {e}")
+        fn()
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--output-dir',type=Path,required=True)
+    main(parser.parse_args().output_dir)

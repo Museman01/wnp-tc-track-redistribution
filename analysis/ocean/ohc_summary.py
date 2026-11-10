@@ -1,21 +1,16 @@
-"""Integrate completed OHC exposure CSV outputs without recomputing the analysis."""
+"""Summarize OHC exposure and decomposition results."""
 
 from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
 import argparse
-import hashlib
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-
-PACKAGE_ROOT = _LAYOUT_ROOT
-PROJECT_ROOT = _LAYOUT_ROOT
-SOURCE_ROOT = _LAYOUT_ROOT / 'results/ocean/ohc300'
-OUTPUT_ROOT = _LAYOUT_ROOT / 'results/ocean/ohc300'
+SOURCE_ROOT = OUTPUT_ROOT = _LAYOUT_ROOT / 'results/ocean/ohc300'
 
 IDENTITY = [
     "comparison", "period1", "period2", "agency", "definition",
@@ -28,14 +23,6 @@ COMPONENTS = [
     "ocean_component",
     "covariability_component",
 ]
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def write_csv(frame: pd.DataFrame, path: Path, overwrite: bool) -> None:
@@ -234,21 +221,23 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--output-dir", type=Path, default=OUTPUT_ROOT)
     args = parser.parse_args()
     if not args.execute:
         raise PermissionError("integration requires explicit --execute")
+    output_dir = (_LAYOUT_ROOT / args.output_dir).resolve()
+    if not output_dir.is_relative_to(_LAYOUT_ROOT.resolve()):
+        raise ValueError("Output directory must remain within the project")
 
     paths = {
-        "summary": _LAYOUT_ROOT / 'results/ocean/ohc300/decomposition_summary.csv',
-        "bootstrap": _LAYOUT_ROOT / 'results/ocean/ohc300/decomposition_bootstrap.csv',
-        "annual": _LAYOUT_ROOT / 'results/ocean/ohc300/annual_exposure.csv',
-        "components": _LAYOUT_ROOT / 'results/ocean/ohc300/decomposition_components.csv.gz',
-        "match_qc": _LAYOUT_ROOT / 'results/ocean/ohc300/match_qc.csv',
-        "matched_points": _LAYOUT_ROOT / 'results/ocean/ohc300/matched_points.csv.gz',
-        "seam": _LAYOUT_ROOT / 'results/ocean/ohc300/product_seam_audit.json',
-        "output_manifest": _LAYOUT_ROOT / 'results/ocean/ohc300/output_manifest.csv',
+        "summary": SOURCE_ROOT / 'decomposition_summary.csv',
+        "bootstrap": SOURCE_ROOT / 'decomposition_bootstrap.csv',
+        "annual": SOURCE_ROOT / 'annual_exposure.csv',
+        "components": SOURCE_ROOT / 'decomposition_components.csv.gz',
+        "match_qc": SOURCE_ROOT / 'match_qc.csv',
+        "matched_points": SOURCE_ROOT / 'matched_points.csv.gz',
+        "seam": SOURCE_ROOT / 'product_seam_audit.json',
     }
-    paths = {name: path for name, path in paths.items() if name != "output_manifest" or path.is_file()}
     missing = [path for path in paths.values() if not path.is_file()]
     if missing:
         raise FileNotFoundError(missing)
@@ -288,17 +277,7 @@ def main() -> None:
     spatial = spatial_contributions(paths["components"])
     validate_spatial_sums(spatial, summary)
 
-    source_manifest = pd.DataFrame([
-        {
-            "name": name,
-            "path": path.relative_to(PROJECT_ROOT).as_posix(),
-            "size_bytes": path.stat().st_size,
-            "sha256": sha256_file(path),
-        }
-        for name, path in paths.items()
-    ])
     outputs = {
-        "source_manifest.csv": source_manifest,
         "main_estimates.csv": main,
         "robustness_counts.csv": robustness,
         "primary_sensitivity_ranges.csv": primary_ranges,
@@ -309,23 +288,7 @@ def main() -> None:
     for name, frame in outputs.items():
         if frame.isna().any().any():
             raise AssertionError(f"{name} contains missing values")
-        write_csv(frame, OUTPUT_ROOT / name, args.overwrite)
-
-    deliverables = [
-        _LAYOUT_ROOT / 'analysis/ocean/ohc_summary.py',
-        _LAYOUT_ROOT / 'docs/OHC_SUMMARY.md',
-        *[OUTPUT_ROOT / name for name in outputs],
-    ]
-    integration_manifest = pd.DataFrame([
-        {
-            "path": path.relative_to(PROJECT_ROOT).as_posix(),
-            "size_bytes": path.stat().st_size,
-            "sha256": sha256_file(path),
-        }
-        for path in deliverables
-    ])
-    write_csv(integration_manifest, _LAYOUT_ROOT / 'results/ocean/ohc300/integration_manifest.csv', args.overwrite)
-
+        write_csv(frame, output_dir / name, args.overwrite)
 
 if __name__ == "__main__":
     main()

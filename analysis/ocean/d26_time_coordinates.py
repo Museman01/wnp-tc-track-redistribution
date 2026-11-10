@@ -8,6 +8,8 @@ import re
 import zipfile
 
 import hashlib
+import shutil
+from pathlib import Path
 
 import numpy as np
 
@@ -15,12 +17,14 @@ import pandas as pd
 
 import netCDF4 as nc
 
-from core.paths import output_path,write_json
+from core.paths import PROJECT,output_path
 
 
 
-def main():
-
+def main(output_dir):
+    out=(PROJECT / output_dir).resolve()
+    if not out.is_relative_to(PROJECT.resolve()):raise ValueError('Output directory must remain within the project')
+    if out.exists():raise FileExistsError(f'Output directory already exists: {out}')
     times={};rows=[]
 
     for receipt in sorted(output_path('data/requests').glob('d26_*_*.json')):
@@ -59,11 +63,12 @@ def main():
 
     assert len(times)==720
 
-    checked=[]
-
+    out.mkdir(parents=True)
     for year in range(1966,2026):
-
-        with nc.Dataset(output_path(f'data/derived/d26/oras5_d26_{year}.nc'),'r+') as d:
+        source=output_path(f'data/derived/d26/oras5_d26_{year}.nc')
+        target=out/source.name
+        shutil.copy2(source,target)
+        with nc.Dataset(target,'r+') as d:
 
             before=hashlib.sha256(np.ma.filled(d['d26'][:],np.nan).tobytes()).hexdigest()
 
@@ -79,22 +84,17 @@ def main():
 
             assert before==after
 
-            checked.append(dict(year=year,data_sha256=after,changed_times=sum(str(a)!=str(times[year,m]) for m,a in enumerate(old,1))))
-
-    pd.DataFrame(rows).sort_values(['year','month']).to_csv(output_path('data/derived/d26_native_times.csv'),index=False)
-
-    write_json('results/diagnostics/d26_native_times.json',dict(status='PASS',source_months=720,years=checked,numerical_effect='None: D26 values and calendar-month ordering unchanged; native source midpoint dates restored.'))
+    pd.DataFrame(rows).sort_values(['year','month']).to_csv(out/'d26_native_times.csv',index=False)
 
 
 
 if __name__=='__main__':
 
-    import sys
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output-dir',type=Path,required=True)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to prepare updated files')
+    main(args.output_dir)
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main()

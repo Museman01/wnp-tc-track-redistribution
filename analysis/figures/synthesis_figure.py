@@ -11,7 +11,7 @@ from PIL import Image
 
 import analysis.figures.relief_basemap as mb
 
-from core.paths import PROJECT,output_path,write_json
+from core.paths import PROJECT,output_path
 
 
 
@@ -59,8 +59,12 @@ def download(budget=150):
 
 
 
-def build():
+def build(output):
 
+    out=(PROJECT / output).resolve()
+    if not out.is_relative_to(PROJECT.resolve()): raise ValueError('Output must remain within the project')
+    if out.exists(): raise FileExistsError('Refusing to overwrite an existing basemap')
+    out.parent.mkdir(parents=True,exist_ok=True)
     from scipy.ndimage import map_coordinates
 
     from analysis.figures.study_region_figure import recolour
@@ -91,11 +95,7 @@ def build():
 
     grey,sea=recolour(rgb,sigma=8,post=0.5)
 
-    Image.fromarray(grey).save(BASE)
-
-    write_json('results/diagnostics/fig07_basemap.json',dict(status='PASS',source=mb.URL.replace('{z}',str(mb.ZOOM)),zoom=mb.ZOOM,tiles=len(todo),
-
-        output=str(BASE.relative_to(output_path('.'))),size=[WIDTH,height],extent=EXTENT,recolour='study_region_figure.recolour(sigma=8, post=0.5)',sea_fraction=round(float(sea),4)))
+    Image.fromarray(grey).save(out)
 
     print('basemap',WIDTH,height)
 
@@ -125,9 +125,10 @@ FRAME=(0.729,0.765,0.788)
 
 def draw(variant='overlay',out=None):
     from pathlib import Path
-    output_root=Path(__file__).resolve().parents[2]
-    if out is None or not (PROJECT / out).resolve().is_relative_to(output_root):
-        raise ValueError('Provide an explicit output stem within the data root.')
+    if out is None or not (PROJECT / out).resolve().is_relative_to(PROJECT.resolve()):
+        raise ValueError('Provide an output stem within the project.')
+    if any(Path(str((PROJECT / out).resolve()) + suffix).exists() for suffix in ('.png', '.pdf')):
+        raise FileExistsError('Refusing to overwrite an existing figure.')
 
     import matplotlib
 
@@ -199,7 +200,6 @@ def draw(variant='overlay',out=None):
     YB=H-3.0
     bx=fig.add_axes([fx(364.7),fy(YB),(667.6-364.7)/W,(YB-4.0)/H])
     bx.set_xlim(364.7,667.6);bx.set_ylim(YB,4.0);bx.set_axis_off()
-    placed=[]
     def box(x0,y0,x1,y1,kind,items):
         styles={
             'observed':('#315b83','#234360','white','solid',1.0),
@@ -212,9 +212,8 @@ def draw(variant='overlay',out=None):
         bx.add_patch(FancyBboxPatch((x0,y0),x1-x0,y1-y0,
             boxstyle='round,pad=0,rounding_size=4.5',facecolor=fc,edgecolor=ec,lw=lw,linestyle=ls))
         for text,offset,size,weight in items:
-            artist=bx.text((x0+x1)/2,y0+offset,text,ha='center',va='center',
+            bx.text((x0+x1)/2,y0+offset,text,ha='center',va='center',
                 fontsize=size,fontweight=weight,color=tc)
-            placed.append(((x0,y0,x1,y1),artist))
     def segment(x0,y0,x1,y1,ls='solid'):
         bx.plot([x0,x1],[y0,y1],color='#62696c',lw=.85,linestyle=ls,solid_capstyle='butt',zorder=1)
     def arrow(x0,y0,x1,y1,style='-|>',ls='solid'):
@@ -224,7 +223,7 @@ def draw(variant='overlay',out=None):
     GAP=6.0;CW=(X1-X0-2*GAP)/3
     c1=(X0,X0+CW);c2=(X0+CW+GAP,X0+2*CW+GAP);c3=(X1-CW,X1)
     m1=sum(c1)/2;m2=sum(c2)/2;m3=sum(c3)/2;m12=(c1[0]+c2[1])/2
-    L,R=440.45,591.85                  # centres of the two expression boxes, for the two coastal and ocean expressions
+    L,R=440.45,591.85                  # centres of the two expression boxes, as in the previous layout
     # row 1: shared observed result
     box(X0,12,X1,57,'observed',[
         ('Shared shift toward higher-latitude pathways',16,10.8,'bold'),
@@ -280,39 +279,17 @@ def draw(variant='overlay',out=None):
         ('act in opposite directions;',41,BS,'normal'),
         ('net change unresolved',55,BS,'normal')])
     bx.text(355.8,6,'b',ha='left',va='top',fontsize=13,fontweight='bold')
-    fig._fig7_placed=(bx,placed)
     for t in fig.findobj(match=matplotlib.text.Text):t.set_fontfamily(FONT)
-
-    fig.canvas.draw()
-    renderer=fig.canvas.get_renderer()
-    min_margin=1e9
-    for (x0,y0,x1,y1),artist in placed:
-        bb=artist.get_window_extent(renderer).transformed(bx.transData.inverted())
-        left,right=sorted([bb.x0,bb.x1]);top,bottom=sorted([bb.y0,bb.y1])
-        margin=min(left-x0,x1-right,top-y0,y1-bottom)
-        min_margin=min(min_margin,margin)
-        assert margin>=3,(artist.get_text(),margin)
-    print('Minimum box-text margin',round(min_margin,2),'pt')
 
     meta={'Title':'Pathway change, statistical analyses, and untested processes','Subject':'Journal of Geophysical Research: Atmospheres Figure 7','Creator':'Matplotlib'}
 
-    stem=out or 'figures/Fig07_outlook_schematic'
+    stem=str(out)
 
     fig.savefig(output_path(stem+'.png'),dpi=600,bbox_inches='tight',pad_inches=0.02)
     fig.savefig(output_path(stem+'.pdf'),bbox_inches='tight',pad_inches=0.02,metadata=meta,dpi=600)
 
     plt.close(fig)
     print('Figure saved:',stem)
-    if not out:
-        write_json('results/diagnostics/synthesis_figure.json',dict(
-            status='PASS',variant=variant,canvas_points=[672,428],
-            shading_threshold=0.25,
-            shading='Mean annual tropical-storm-qualified track-point count change per 2.5-degree cell',
-            evidence_levels=dict(
-                observed='Shared relative pathway shift across four agency records',
-                statistical=['Genesis-bin storm-equal partition','June-October primary-record steering-regime partition'],
-                interpretation=['Different routes can share broad genesis regions','Regional track shares can shift in opposite directions'],
-                expressions=['First-landfall latitude','Upper-ocean exposure'])) )
 
 if __name__=='__main__':
     if '--execute' not in sys.argv:

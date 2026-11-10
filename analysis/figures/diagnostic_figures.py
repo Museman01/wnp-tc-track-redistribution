@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
-from core.paths import PROJECT,output_path,write_json
+from core.paths import PROJECT,output_path
 
 import argparse
+from pathlib import Path
 
 import numpy as np
 
@@ -17,11 +18,10 @@ matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt
 
-from matplotlib.patches import FancyBboxPatch,Rectangle
+from matplotlib.patches import Rectangle
 
 from matplotlib.lines import Line2D
 
-from matplotlib.colors import TwoSlopeNorm
 
 import geopandas as gpd
 
@@ -29,15 +29,17 @@ import geopandas as gpd
 
 
 
-from analysis.figures.shared_figure_style import COLORS as COLOURS, LABELS as LABEL, PERIODS, geo_ticks, FONT
+from analysis.figures.shared_figure_style import LABELS as LABEL, PERIODS, geo_ticks
 
 EARLY,LATE=PERIODS['early'][0],PERIODS['late'][0]
+FIGURE_DIR=PROJECT/'figures'
+RESULT_DIR=PROJECT/'results/tracks'
 
 _coast=None
 
 
 
-# Canvas dimensions in pixels for the supplementary figures.
+# Preserve the six embedded-image dimensions so Word/PDF geometry stays fixed.
 
 CANVASES={
 
@@ -100,12 +102,10 @@ def coast(ax,extent=(100,180,0,40)):
 
 
 def save(fig,name):
-
-    # All typography is set before layout. No post-layout font enlargement.
-
-    fig.savefig(output_path('figures/'+name+'.png'),dpi=300)
-
-    fig.savefig(output_path('figures/'+name+'.pdf'),metadata={
+    png=FIGURE_DIR/(name+'.png');pdf=FIGURE_DIR/(name+'.pdf')
+    if png.exists() or pdf.exists():raise FileExistsError(f'Refusing to overwrite existing figure: {name}')
+    fig.savefig(output_path(str(png)),dpi=300)
+    fig.savefig(output_path(str(pdf)),metadata={
 
         'Creator':'Matplotlib','Author':'Daizhao Huang; Yuanfu Yue'})
 
@@ -280,7 +280,9 @@ def hko():
 
 
 def evidence():
-
+    target=RESULT_DIR/'absolute_track_point_change.npz'
+    if target.exists():raise FileExistsError(f'Refusing to overwrite existing result: {target}')
+    RESULT_DIR.mkdir(parents=True,exist_ok=True)
     from analysis.shared.agency_catalogues import primary_ts, domain
 
     t=domain(primary_ts());xe=np.arange(100,182.5,2.5);ye=np.arange(0,42.5,2.5)
@@ -289,9 +291,9 @@ def evidence():
 
     change=counts[30:].mean(0)-counts[:30].mean(0)
 
-    np.savez(_LAYOUT_ROOT / 'results/tracks/absolute_track_point_change.npz',change=change,early=counts[:30].mean(0),late=counts[30:].mean(0),lon_edges=xe,lat_edges=ye)
+    np.savez(target,change=change,early=counts[:30].mean(0),late=counts[30:].mean(0),lon_edges=xe,lat_edges=ye)
 
-
+    
 
 
 
@@ -333,7 +335,12 @@ if __name__=='__main__':
 
     sys.argv.remove('--execute')
 
-    parser=argparse.ArgumentParser();parser.add_argument('--only',choices=['all','d26','counts_and_circulation','s15','maps','si'],default='all');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--only',choices=['all','d26','counts_and_circulation','s15','maps','si'],default='all');parser.add_argument('--output-root',type=Path);args=parser.parse_args()
+    if args.output_root is not None:
+        root=(PROJECT / args.output_root).resolve()
+        if not root.is_relative_to(PROJECT.resolve()):raise ValueError('Output root must remain within the project')
+        root.mkdir(parents=True,exist_ok=False)
+        FIGURE_DIR=root/'figures';RESULT_DIR=root/'tables'
 
     if args.only=='counts_and_circulation':absolute();steering();evidence()
 
@@ -345,4 +352,4 @@ if __name__=='__main__':
 
     if args.only=='si':absolute();bam();steering();hko();d26()
 
-    if args.only in ['all','d26'] and _LAYOUT_ROOT / 'results/ocean/d26/d26_parallel_summary.csv'.exists():d26()
+    if args.only in ['all','d26'] and (_LAYOUT_ROOT / 'results/ocean/d26/d26_parallel_summary.csv').exists():d26()

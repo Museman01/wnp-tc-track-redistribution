@@ -1,5 +1,6 @@
-'路径点密度场（年代际与 ENSO 位相），单位为「每年每格 6 小时轨迹点数」。\n\n产出 processed/density_dec_{decade}.npz、density_phase_{phase}.npz。\n先逐年计算 2.5° 网格密度，再在年代/显式 ENSO 位相内对年度密度取平均，\n避免不完整十年或位相样本数主导结果。\n'
+'路径点密度场（年代际与 ENSO 位相），单位为「每年每格 6 小时轨迹点数」。\n\n产出 processed/track_density/density_dec_{decade}.npz、density_phase_{phase}.npz。\n先逐年计算 2.5° 网格密度，再在年代/显式 ENSO 位相内对年度密度取平均，\n避免不完整十年或位相样本数主导结果。\n'
 import pandas as pd, numpy as np
+from pathlib import Path
 from core.utils import load_config
 
 
@@ -27,11 +28,16 @@ def main():
     # 字典推导式生成 year→二维年度密度场 的映射。
     annual = {int(y): density(g, lon_edges, lat_edges) for y, g in tr.groupby("season")}
 
+    output = Path(cfg["paths"]["processed"]) / "track_density"
+    if output.exists() and any(output.glob("density_*.npz")):
+        raise FileExistsError(f"Refusing to overwrite existing density outputs: {output}")
+    output.mkdir(parents=True, exist_ok=True)
+
     ndec = 0
     for dec in sorted({(y // 10) * 10 for y in annual}):
         # 找出属于当前十年的所有实际年份，不假定每个十年都有 10 年资料。
         years = [y for y in annual if (y // 10) * 10 == dec]
-        np.savez(f"{cfg['paths']['processed']}/density_dec_{dec}.npz",
+        np.savez(output / f"density_dec_{dec}.npz",
                  # 先逐年统计再取平均，避免不完整十年因年份少而总量偏低。
                  lon=lon, lat=lat, dens=np.mean([annual[y] for y in years], axis=0),
                  years=years, n_years=len(years), unit="points_per_year")
@@ -47,7 +53,7 @@ def main():
         years = [int(y) for y in tab.season if int(y) in annual]
         if not years:
             continue
-        np.savez(f"{cfg['paths']['processed']}/density_phase_{ph}.npz",
+        np.savez(output / f"density_phase_{ph}.npz",
                  lon=lon, lat=lat, dens=np.mean([annual[y] for y in years], axis=0),
                  years=years, n_years=len(years), unit="points_per_year")
         nph += 1

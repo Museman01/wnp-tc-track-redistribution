@@ -6,7 +6,6 @@ from core.paths import PROJECT as _LAYOUT_ROOT
 
 import argparse
 
-import time
 
 from pathlib import Path
 
@@ -14,11 +13,6 @@ from pathlib import Path
 
 import geopandas as gpd
 
-import matplotlib
-
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
 
 import numpy as np
 
@@ -28,13 +22,11 @@ import shapely
 
 from shapely.geometry import GeometryCollection, LineString, MultiLineString, MultiPoint, Point
 
-from shapely.prepared import prep
 
 
 
-from analysis.shared.agency_paths import PROJECT, WORK, load_config
+from analysis.shared.agency_paths import PROJECT, load_config
 
-from analysis.figures.validation_figure_typography import scale_figure_typography
 
 
 
@@ -58,9 +50,7 @@ AUTHORITY_PATH = (
 
 )
 
-AGENCY_LABEL = {"USA": "USA", "TOKYO": "JMA", "CMA": "CMA"}
 
-COLORS = {"USA": "#4069A1", "TOKYO": "#7F9FC5", "CMA": "#C66D6D"}
 
 
 
@@ -712,210 +702,31 @@ def leave_one_coast_out(events: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 
 
-def compare_raster(exact: pd.DataFrame) -> pd.DataFrame:
-
-    approximate = pd.read_csv(WORK / "data/reference_inputs/candidate_landfalls.csv", parse_dates=["time"])
-
-    exact = exact.copy()
-
-    rows = []
-
-    for (agency, sid), group in approximate.groupby(["agency", "sid"]):
-
-        candidates = exact.loc[exact.agency.eq(agency) & exact.sid.eq(sid)]
-
-        for r in group.itertuples():
-
-            if candidates.empty:
-
-                rows.append({"agency": agency, "sid": sid, "approx_time": r.time, "matched": False})
-
-                continue
-
-            delta = (candidates.time - r.time).abs()
-
-            match = candidates.loc[delta.idxmin()]
-
-            rows.append({"agency": agency, "sid": sid, "approx_time": r.time, "matched": True,
-
-                         "exact_time": match.time, "time_difference_hours": abs((match.time-r.time).total_seconds())/3600,
-
-                         "lat_difference_deg": match.lat-r.lat, "lon_difference_deg": match.lon-r.lon})
-
-    return pd.DataFrame(rows)
-
-
-
-
-
-def evidence_criteria(summary: pd.DataFrame, leave_out: pd.DataFrame) -> dict:
-    main = summary.loc[(summary.start == 1966) & (summary.end == 2025) & summary.metric.eq('mean_lat') & summary.definition.isin(['first_landfall', 'all_events'])]
-    no2025 = summary.loc[(summary.start == 1966) & (summary.end == 2024) & summary.metric.eq('mean_lat') & summary.definition.isin(['first_landfall', 'all_events'])]
-    recent = summary.loc[(summary.start == 1982) & (summary.end == 2025) & summary.metric.eq('mean_lat') & summary.definition.isin(['first_landfall', 'all_events'])]
-    direction_all = bool((main.period_difference > 0).all())
-    significant_agencies = main.loc[main.period_q_bh < 0.05, 'agency'].nunique()
-    no2025_no_reversal = bool((no2025.period_difference > 0).all())
-    recent_direction = bool((recent.sen_slope_per_decade >= 0).all())
-    leave = leave_out.loc[leave_out.excluded_coast.ne('none')]
-    not_single_coast = bool((leave.period_difference_mean_lat > 0).groupby([leave.agency, leave.definition]).mean().ge(0.75).all())
-    passed = direction_all and significant_agencies >= 2 and no2025_no_reversal and recent_direction and not_single_coast
-    return {'direction_all': direction_all, 'significant_agencies': int(significant_agencies), 'no2025_no_reversal': no2025_no_reversal, 'recent_direction': recent_direction, 'not_single_coast': not_single_coast, 'combined_criteria_met': passed}
-
-
-
-
-
-def make_figure(annual, summary, output):
-
-    fig, axes = plt.subplots(2, 2, figsize=(11.5, 7.5), constrained_layout=True)
-
-    for ax, definition, label in [(axes[0, 0], "first_landfall", "First landfall"), (axes[0, 1], "all_events", "All landfall events")]:
-
-        for agency in AGENCIES:
-
-            d = annual.loc[annual.agency.eq(agency) & annual.definition.eq(definition)]
-
-            ax.plot(d.year, d.mean_lat, lw=1.05, color=COLORS[agency], label=AGENCY_LABEL[agency])
-
-        ax.set(xlabel="Year", ylabel="Annual mean landfall latitude (°N)", title=label)
-
-        ax.legend(frameon=False, ncol=3)
-
-    key = summary.loc[(summary.start == 1966) & (summary.end == 2025) & summary.metric.eq("mean_lat") & summary.definition.isin(["first_landfall", "all_events"])]
-
-    x = np.arange(len(key)); y = key.period_difference.to_numpy(); lo = y-key.period_ci_low.to_numpy(); hi = key.period_ci_high.to_numpy()-y
-
-    axes[1, 0].errorbar(x, y, yerr=[lo, hi], fmt="o", capsize=3, color="#333333")
-
-    axes[1, 0].axhline(0, color="0.5", lw=0.8); axes[1, 0].set_xticks(x, [f"{AGENCY_LABEL[a]}\n{d.replace('_',' ')}" for a,d in zip(key.agency,key.definition)], rotation=20)
-
-    axes[1, 0].set_ylabel("Late minus early mean latitude (°)")
-
-    axes[1, 0].set_ylim(bottom=0)
-
-    sensitivity = summary.loc[(summary.start == 1966) & summary.metric.eq("mean_lat") & summary.definition.eq("first_landfall")]
-
-    for agency in AGENCIES:
-
-        d = sensitivity.loc[sensitivity.agency.eq(agency)].sort_values("end")
-
-        axes[1, 1].plot(d.end, d.period_difference, "o-", color=COLORS[agency], label=AGENCY_LABEL[agency])
-
-    axes[1, 1].axhline(0, color="0.5", lw=0.8)
-
-    # These are two complete-calendar-year endpoints, not a continuous monthly
-
-    # series; show them as such rather than rendering fractional year ticks.
-
-    endpoints = sorted(sensitivity.end.unique())
-
-    axes[1, 1].set(
-
-        xticks=endpoints,
-
-        xticklabels=[f"Through Dec. {int(year)}" for year in endpoints],
-
-        xlabel="Analysis endpoint",
-
-        ylabel="First-landfall latitude difference (°)",
-
-    )
-
-    axes[1, 1].set_xlim(min(endpoints) - 0.08, max(endpoints) + 0.08)
-
-    axes[1, 1].set_ylim(bottom=0.50)
-
-    for ax in axes.flat:
-
-        ax.spines["top"].set_visible(False)
-
-    for ax in axes[:, 0]:
-
-        ax.spines["right"].set_visible(False)
-
-    for ax in axes[:, 1]:
-
-        ax.spines["left"].set_visible(False)
-
-        ax.spines["right"].set_visible(True)
-
-        ax.yaxis.set_label_position("right")
-
-        ax.yaxis.tick_right()
-
-        ax.tick_params(axis="y", left=False, labelleft=False, right=True, labelright=True)
-
-    for label, ax in zip("abcd", axes.flat):
-
-        ax.text(0.015, 0.985, label, transform=ax.transAxes, va="top", ha="left", fontweight="bold")
-
-    scale_figure_typography(fig, scale=1.20)
-
-    fig.savefig(output.with_suffix(".png"), dpi=320, bbox_inches="tight")
-
-    fig.savefig(output.with_suffix(".pdf"), bbox_inches="tight")
-
-    plt.close(fig)
-
-
-
-
-
-
-
-
-
-
-
-def run(*, reuse_existing: bool = False):
-
-    started = time.time()
-
-    ANALYSIS.mkdir(parents=True, exist_ok=True)
+def run(*, reuse_existing: bool = False, candidate_events: Path | None = None, output_dir: Path = ANALYSIS):
+    if not reuse_existing and candidate_events is None:
+        raise ValueError('Provide candidate events or use the existing exact crossings')
+    out = (PROJECT / output_dir).resolve()
+    if not out.is_relative_to(PROJECT.resolve()):
+        raise ValueError('Output directory must remain within the project')
+    if out.exists() and any(out.iterdir()):
+        raise FileExistsError(f'Refusing to overwrite existing results: {out}')
+    out.mkdir(parents=True, exist_ok=True)
 
     cfg = load_config()
 
     source = read_ibtracs_agencies(PROJECT / "data/raw/IBTrACS.WP.v04r01.csv", start=1966, end=2025)
 
-    full_lifecycle_path = ANALYSIS / "landfall_events_exact_full_lifecycle.csv"
+    full_lifecycle_path = out / "landfall_events_exact_full_lifecycle.csv"
 
     if reuse_existing:
-
-        source_path = (
-
-            full_lifecycle_path
-
-            if full_lifecycle_path.exists()
-
-            else ANALYSIS / "landfall_events_exact.csv"
-
-        )
-
-        full_lifecycle = pd.read_csv(
-
-            source_path,
-
-            parse_dates=["time", "segment_start", "segment_end"],
-
-        )
-
-        unresolved_path = ANALYSIS / "unresolved_candidates.csv"
-
-        unresolved = (
-
-            pd.read_csv(unresolved_path)
-
-            if unresolved_path.exists()
-
-            else pd.DataFrame()
-
-        )
+        source_path = PROJECT / 'results/landfall/landfall_events_exact_full_lifecycle.csv'
+        full_lifecycle = pd.read_csv(source_path, parse_dates=["time", "segment_start", "segment_end"])
 
     else:
 
         catalogs = {agency: build_agency_catalog(source, agency) for agency in AGENCIES}
 
-        candidate_events = pd.read_csv(WORK / "data/reference_inputs/candidate_landfalls.csv", parse_dates=["time"])
+        candidate_events = pd.read_csv(candidate_events, parse_dates=["time"])
 
         candidate_events = candidate_events.loc[candidate_events.season.between(1966, 2025)]
 
@@ -947,19 +758,20 @@ def run(*, reuse_existing: bool = False):
 
         unresolved = pd.concat(all_unresolved, ignore_index=True)
 
-        unresolved.to_csv(ANALYSIS / "unresolved_candidates.csv", index=False)
+        unresolved.to_csv(out / "unresolved_candidates.csv", index=False)
 
 
 
-    full_lifecycle.to_csv(full_lifecycle_path, index=False)
+    if not reuse_existing:
+        full_lifecycle.to_csv(full_lifecycle_path, index=False)
 
     stage_audit = attach_native_stage_and_exclusive_coast(full_lifecycle, source)
 
-    stage_audit.to_csv(ANALYSIS / "landfall_events_exact_stage_audit.csv", index=False)
+    stage_audit.to_csv(out / "landfall_events_exact_stage_audit.csv", index=False)
 
     events = stage_audit.loc[stage_audit["pre_crossing_native_ts"]].copy()
 
-    events.to_csv(ANALYSIS / "landfall_events_exact.csv", index=False)
+    events.to_csv(out / "landfall_events_exact.csv", index=False)
 
     years = np.arange(1966, 2026)
 
@@ -975,64 +787,15 @@ def run(*, reuse_existing: bool = False):
 
     annual = pd.DataFrame(annual_rows)
 
-    annual.to_csv(ANALYSIS / "landfall_latitude_annual.csv", index=False)
+    annual.to_csv(out / "landfall_latitude_annual.csv", index=False)
 
     summary = summarize(annual, cfg)
 
-    summary.to_csv(ANALYSIS / "landfall_latitude_summary.csv", index=False)
+    summary.to_csv(out / "landfall_latitude_summary.csv", index=False)
 
     leave = leave_one_coast_out(events, cfg)
 
-    leave.to_csv(ANALYSIS / "leave_one_coast_out.csv", index=False)
-
-    comparison = compare_raster(events)
-
-    comparison.to_csv(ANALYSIS / "comparison_with_raster_candidates.csv", index=False)
-
-    samples = events.groupby(["agency", "coast"], group_keys=False).head(2).head(30)
-
-    samples.to_csv(ANALYSIS / "manual_validation_samples.csv", index=False)
-
-    criteria = evidence_criteria(summary, leave)
-
-    key = summary.loc[(summary.start == 1966) & (summary.end == 2025) & summary.metric.eq("mean_lat") & summary.definition.isin(["first_landfall", "all_events"])]
-
-    criteria_lines = "\n".join(f"- {name}: `{value}`" for name, value in criteria.items())
-
-    results_lines = "\n".join(
-
-        f"- {AGENCY_LABEL[r.agency]} / {r.definition}: Δ={r.period_difference:.3f}°，95% CI [{r.period_ci_low:.3f}, {r.period_ci_high:.3f}]，p={r.period_block_p:.4f}，q={r.period_q_bh:.4f}。"
-
-        for r in key.itertuples())
-
-    (ANALYSIS / "landfall_evidence.md").write_text(
-
-        f"# 登陆纬度证据边界\n\n## 直接登陆纬度结果\n\n{results_lines}\n\n## 方向与敏感性诊断\n\n{criteria_lines}\n\n留一海岸检验只用于判断北移方向是否由单一岸段驱动，相关置换p值作诊断，不替代预设完整样本的族内FDR检验。卫星时期趋势判据只检查方向，趋势显著性及置信区间单独报告。\n",
-
-        encoding="utf-8")
-
-    (ANALYSIS / "method.md").write_text(
-
-        "# 直接登陆纬度方法\n\n使用IBTrACS v04r01中USA、JMA（TOKYO字段）和CMA原始机构位置。仅连接同一SID内时间间隔大于0且不超过12 h的相邻点。为控制内存，先用既有0.02°GSHHG海陆掩膜识别海到陆候选线段；该步骤只作保守筛选，不提供最终坐标。随后将每条候选轨迹线段与GSHHG高分辨率L1陆地多边形边界精确求交，并按线段顺序检查交点前后的海陆状态；最终登陆时间、纬度、经度和风速全部按精确交点在线段上的比例插值。12 h内的重复交点合并；再入海后超过12 h的登陆保留。未能得到矢量海到陆交点的候选单列于`unresolved_candidates.csv`，不以近似点填补。正式登陆事件要求海岸交点前一个机构原生时次已达到热带风暴或以上；交点前后任一端及两端的阶段标记另存于记录表，不进入主统计。离散海岸归属统一读取互斥GSHHG岸段权威表。统计采用首次合格登陆、全部合格登陆事件和唯一风暴—海岸三种定义，以年度均值、中位数和四分位数为统计单位。时期差使用3年分块置换，置信区间使用3年移动块自助；趋势使用Theil—Sen和Hamed—Rao修正MK。BH-FDR按登陆定义、统计量和分析端点分别成族，每族包含USA、JMA和CMA三个机构检验。\n",
-
-        encoding="utf-8")
-
-    make_figure(annual, summary, ANALYSIS / "landfall_latitude_diagnostic")
-
-    elapsed = time.time() - started
-
-    (ANALYSIS / "matching_diagnostics.log").write_text(
-
-        f"elapsed_seconds={elapsed:.3f}\nfull_lifecycle_events={len(full_lifecycle)}\nqualified_native_ts_events={len(events)}\nunresolved_candidates={len(unresolved)}\nUSA={sum(events.agency.eq('USA'))}\nJMA={sum(events.agency.eq('TOKYO'))}\nCMA={sum(events.agency.eq('CMA'))}\n",
-
-        encoding="utf-8")
-
-    print(key[["agency", "definition", "period_difference", "period_ci_low", "period_ci_high", "period_block_p", "period_q_bh"]].to_string(index=False))
-
-
-
-
-
+    leave.to_csv(out / "leave_one_coast_out.csv", index=False)
 
 if __name__ == "__main__":
 
@@ -1052,8 +815,12 @@ if __name__ == "__main__":
 
         action="store_true",
 
-        help="Use the existing exact crossing table to calculate intensity selection and statistics.",
+        help="Reuse the existing exact crossing table and rerun stage/statistical layers.",
 
     )
 
-    run(reuse_existing=parser.parse_args().reuse_existing)
+    parser.add_argument("--candidate-events", type=Path)
+    parser.add_argument("--output-dir", type=Path, default=ANALYSIS)
+    args = parser.parse_args()
+    run(reuse_existing=args.reuse_existing, candidate_events=args.candidate_events, output_dir=args.output_dir)
+

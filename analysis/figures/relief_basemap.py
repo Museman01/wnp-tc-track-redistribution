@@ -1,7 +1,7 @@
 'Relief basemap.'
 from __future__ import annotations
 
-import sys,math,time,json,urllib.request
+import sys,math,time,urllib.request
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -9,7 +9,7 @@ import numpy as np
 
 from PIL import Image
 
-from core.paths import output_path,write_json
+from core.paths import PROJECT,output_path
 
 
 
@@ -87,8 +87,12 @@ def download(budget=150):
 
 
 
-def build():
+def build(output):
 
+    out=(PROJECT / output).resolve()
+    if not out.is_relative_to(PROJECT.resolve()): raise ValueError('Output must remain within the project')
+    if out.exists(): raise FileExistsError('Refusing to overwrite an existing basemap')
+    out.parent.mkdir(parents=True,exist_ok=True)
     from scipy.ndimage import map_coordinates
 
     todo=tiles();xs=sorted({x for x,_ in todo});ys=sorted({y for _,y in todo})
@@ -115,11 +119,7 @@ def build():
 
     out=np.stack([map_coordinates(mosaic[...,c].astype(float),[PY-0.5,PX-0.5],order=1,mode='nearest') for c in range(3)],-1)
 
-    Image.fromarray(out.clip(0,255).astype(np.uint8)).save(OUT)
-
-    write_json('results/diagnostics/mff_basemap.json',dict(status='PASS',source=URL.replace('{z}',str(ZOOM)),zoom=ZOOM,tiles=len(todo),
-
-        output=str(OUT.relative_to(output_path('.'))),size=[WIDTH,height],extent=EXTENT,resampling='bilinear web-Mercator to plate carree'))
+    Image.fromarray(out.clip(0,255).astype(np.uint8)).save((PROJECT / output).resolve())
 
     print('basemap',WIDTH,height)
 
@@ -135,4 +135,5 @@ if __name__=='__main__':
 
     sys.argv.remove('--execute')
 
-    {'download':download,'build':build}[sys.argv[1]]()
+    {'download':download,'build':build}[sys.argv[1]](*sys.argv[2:])
+

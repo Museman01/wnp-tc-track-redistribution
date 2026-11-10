@@ -8,7 +8,7 @@ import pandas as pd
 
 
 
-from analysis.shared.agency_paths import WORK, load_config
+from analysis.shared.agency_paths import PROJECT, WORK, load_config
 
 from analysis.shared.block_resampling import bh_fdr, block_permutation_difference
 
@@ -224,15 +224,18 @@ def summarize(events, cfg, threshold_km):
 
 
 
-def run():
+def run(output_dir, events_path=None):
+
+    from pathlib import Path
+    from core.paths import create_new_output_dir
 
     cfg = load_config()
 
-    out = PROJECT / "results" / "06_landfall_grouping"
+    out = create_new_output_dir(output_dir)
 
-    out.mkdir(parents=True, exist_ok=True)
+    events_path = Path(events_path) if events_path else PROJECT / "results" / "landfall" / "landfall_events_exact.csv"
 
-    events = pd.read_csv(PROJECT / "results" / "01_landfall_latitude" / "landfall_events_exact.csv")
+    events = pd.read_csv(events_path)
 
     events["time"] = pd.to_datetime(events["time"])
 
@@ -308,12 +311,15 @@ def run():
 
 if __name__ == "__main__":
 
-    import sys
+    from pathlib import Path
+    import argparse
 
-    if '--execute' not in sys.argv:
+    parser = argparse.ArgumentParser(description="Validate landfall coast grouping.")
+    parser.add_argument("--execute", action="store_true", help="confirm execution")
+    parser.add_argument("--output-dir", required=True, help="new project-local output directory")
+    parser.add_argument("--events", type=Path, help="exact landfall events CSV")
+    args = parser.parse_args()
+    if not args.execute:
+        parser.error("add --execute to write outputs")
+    run(args.output_dir, args.events)
 
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    run()

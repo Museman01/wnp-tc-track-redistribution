@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-from core.paths import PROJECT as _LAYOUT_ROOT
-
-import importlib.util,sys,types,json
+from core.paths import create_new_output_dir
 
 import numpy as np,pandas as pd
-
-from core.paths import PROJECT,output_path,write_json
 
 
 
@@ -18,15 +14,10 @@ import analysis.tracks.genesis_shapley as decomp
 
 
 
-OUT=_LAYOUT_ROOT / 'results/genesis'
 
-# Manuscript values (Section 3.3): conditional share and 95% bootstrap interval, genesis share.
+def run(catalog, output_dir):
 
-EXPECTED={'PRIMARY':(79.1,68.8,93.5,20.9),'USA':(79.4,69.4,93.6,20.6),'TOKYO':(73.7,65.4,92.3,26.3),'CMA':(80.0,67.6,93.6,20.0)}
-
-
-
-def run(catalog):
+    out=create_new_output_dir(output_dir)
 
     if catalog=='HKO':
 
@@ -48,50 +39,24 @@ def run(catalog):
 
         lo,hi=np.quantile(b[v].dropna(),[0.025,0.975]);summary[f'{v}_boot_lo']=lo;summary[f'{v}_boot_hi']=hi
 
-    OUT.mkdir(parents=True,exist_ok=True)
 
-    np.savez_compressed(OUT/f'{catalog}_fields.npz',**fields)
+    np.savez_compressed(out/f'{catalog}_fields.npz',**fields)
 
-    pd.DataFrame([summary]).to_csv(OUT/f'{catalog}_summary.csv',index=False)
+    pd.DataFrame([summary]).to_csv(out/f'{catalog}_summary.csv',index=False)
 
-    b.to_csv(OUT/f'{catalog}_bootstrap.csv',index=False)
+    b.to_csv(out/f'{catalog}_bootstrap.csv',index=False)
 
     print(catalog,{k:summary[k] for k in summary if 'fraction' in k})
 
 
 
-def check():
-
-    rows=[];ok=True
-
-    for cat,(cond,lo,hi,gen) in EXPECTED.items():
-
-        s=pd.read_csv(OUT/f'{cat}_summary.csv').iloc[0]
-
-        got=(round(100*s.propagation_projection_fraction,1),round(100*s.propagation_projection_fraction_boot_lo,1),
-
-             round(100*s.propagation_projection_fraction_boot_hi,1),round(100*s.genesis_projection_fraction,1))
-
-        match=got==(cond,lo,hi,gen);ok&=match
-
-        rows.append(dict(catalog=cat,expected=[cond,lo,hi,gen],regenerated=list(got),match=match))
-
-    write_json('results/diagnostics/genesis_decomposition_regeneration.json',dict(status='PASS' if ok else 'MISMATCH',rows=rows,
-
-        code='analysis/tracks/genesis_shapley.py with the supplied input records'))
-
-    print('PASS' if ok else 'MISMATCH',rows)
-
-
-
 if __name__=='__main__':
-
-    import sys
-
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    check() if sys.argv[1]=='check' else run(sys.argv[1])
+    import argparse
+    from pathlib import Path
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('catalog',choices=['PRIMARY','USA','TOKYO','CMA','HKO'])
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output-dir',type=Path,required=True)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to calculate the decomposition')
+    run(args.catalog,args.output_dir)

@@ -3,21 +3,27 @@
 产出 landfall_fraction_annual.csv 和 landfall_by_coast.csv。
 频数可用全期；平均/中位登陆强度只用 1982 年后（资料均一期），且仅基于源数据有可用
 风速的事件。1982 年后源 landfalls.csv 仍可能缺风速（个别"年份×海岸"组可能全部缺测），
-相应强度统计记为缺失（NaN）；强度统计仅使用源数据中可用的风速，不以 0 或插值填补。
+相应强度统计记为缺失（NaN），不以 0 或插值替代。
 """
 import pandas as pd
+from pathlib import Path
 from core.utils import load_config
 
 
 def main():
     cfg = load_config()
+    output = Path(cfg["paths"]["processed"]) / "landfall"
+    targets = ["landfall_fraction_annual.csv", "landfall_by_coast.csv"]
+    if any((output / name).exists() for name in targets):
+        raise FileExistsError(f"Refusing to overwrite existing landfall outputs: {output}")
+    output.mkdir(parents=True, exist_ok=True)
     s = pd.read_csv(f"{cfg['paths']['processed']}/storms.csv")
     lf = pd.read_csv(f"{cfg['paths']['processed']}/landfalls.csv", parse_dates=["time"])
     # 布尔值 True/False 转成 1/0 后，年度均值就是登陆气旋比例。
     s["made_landfall"] = (s["n_landfall"] > 0).astype(int)
     s.groupby("season")["made_landfall"].agg(
         n_tc="size", landfall_storms="sum", landfall_frac="mean") \
-        .to_csv(f"{cfg['paths']['processed']}/landfall_fraction_annual.csv")
+        .to_csv(output / "landfall_fraction_annual.csv")
     # 登陆事件表本身没有 season 时，从主表按 SID 补入。
     lf = lf.merge(s[["sid", "season"]], on="sid", how="left")
     # size 计算事件数；nunique 计算不同气旋数，二者不能混为同一指标。
@@ -28,7 +34,7 @@ def main():
     intensity = post.groupby(["season", "coast"])["wind"].agg(wind_mean="mean", wind_median="median")
     # join 按相同的「season, coast」多层索引连接频数和强度统计。
     counts.join(intensity).reset_index().to_csv(
-        f"{cfg['paths']['processed']}/landfall_by_coast.csv", index=False)
+        output / "landfall_by_coast.csv", index=False)
     # 透明报告：1982 年后源数据缺风速的事件数与"全缺"的年份×海岸组数（属正常，非计算错误）。
     n_missing = int(post["wind"].isna().sum())
     n_groups_allmissing = int((post.groupby(["season", "coast"])["wind"]

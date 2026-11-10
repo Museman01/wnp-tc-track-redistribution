@@ -5,12 +5,12 @@ from __future__ import annotations
 from core.paths import PROJECT as _LAYOUT_ROOT
 
 from itertools import combinations
+from pathlib import Path
 
 import numpy as np
 
 import pandas as pd
 
-from core.paths import PROJECT,output_path,write_json
 
 from analysis.shared.agency_catalogues import all_catalogues, annual_fields, domain
 
@@ -18,8 +18,12 @@ from analysis.shared.inference_stats import compositional_change_test, bh_fdr
 
 
 
-def main():
-
+def main(output_dir=None):
+    out=(_LAYOUT_ROOT / (output_dir or 'results/tracks')).resolve()
+    if not out.is_relative_to(_LAYOUT_ROOT.resolve()):raise ValueError('Output directory must remain within the project')
+    names=['hko_track_field_tests.csv','hko_difference_correlations.csv','four_agency_common_membership.csv','hko_track_fields.npz']
+    if any((out/name).exists() for name in names):raise FileExistsError('Refusing to overwrite existing track results')
+    out.mkdir(parents=True,exist_ok=True)
     cats=all_catalogues();years=np.arange(1966,2026)
 
     common=set.intersection(*(set(domain(c['ts_points']).sid) for c in cats.values()))
@@ -58,36 +62,21 @@ def main():
 
     for sample,idx in frame.groupby('sample').groups.items():frame.loc[idx,'q_bh_four_agency_family']=bh_fdr(frame.loc[idx,'block_permutation_p'])
 
-    frame.to_csv(_LAYOUT_ROOT / 'results/tracks/hko_track_field_tests.csv',index=False)
+    frame.to_csv(out / 'hko_track_field_tests.csv',index=False)
 
-    pd.DataFrame(corr).to_csv(_LAYOUT_ROOT / 'results/tracks/hko_difference_correlations.csv',index=False)
+    pd.DataFrame(corr).to_csv(out / 'hko_difference_correlations.csv',index=False)
 
-    pd.DataFrame({'sid':sorted(common)}).to_csv(_LAYOUT_ROOT / 'results/tracks/four_agency_common_membership.csv',index=False)
+    pd.DataFrame({'sid':sorted(common)}).to_csv(out / 'four_agency_common_membership.csv',index=False)
 
-    np.savez(_LAYOUT_ROOT / 'results/tracks/hko_track_fields.npz',**arrays)
-
-    write_json('results/diagnostics/hko_comparison.json',{'status':'PASS','window':'1966-2025 (30 early years, 30 late years)',
-
-        'HKO_2025':'Official HKO post-analysis records for 2025, matched to IBTrACS storm identifiers','common_storms':len(common),
-
-        'HKO_flags':'IFLAG character 4; O/V native intensity and O/I/V native position',
-
-        'HKO_native_TS_categories':['TS','STS','T','ST','SuperT'],
-
-        'claim_scope':'Sensitivity to record conventions; shared observations do not imply independent confirmations.',
-
-        'genesis_inference':'Spatial-field agreement alone does not establish small agency or temporal differences in genesis.'})
-
-
+    np.savez(out / 'hko_track_fields.npz',**arrays)
 
 if __name__=='__main__':
 
-    import sys
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output-dir',type=Path)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to calculate track comparisons')
+    main(args.output_dir)
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main()

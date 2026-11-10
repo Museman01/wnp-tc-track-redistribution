@@ -216,12 +216,14 @@ class FinishedFigure(Exception):pass
 def main():
     global OUTPUT
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('figure')
+    parser.add_argument('figure',choices=['2','3','4','5','6','7','S01','S02','S03','S06','S07','S09','S11','S12','S13','S14','S15','S16','S17','S18','S19'])
     parser.add_argument('--output-dir', required=True, type=Path)
     parser.add_argument('--execute', action='store_true')
     a=parser.parse_args()
     if not a.execute:parser.error('Use --execute to draw figures')
-    OUTPUT=a.output_dir.resolve();OUTPUT.mkdir(parents=True,exist_ok=True)
+    OUTPUT=a.output_dir.resolve()
+    if not OUTPUT.is_relative_to(PROJECT.resolve()):parser.error('Output directory must remain within the project')
+    OUTPUT.mkdir(parents=True,exist_ok=True)
     # Each selected renderer declares its output names; reject an occupied directory.
     if any(OUTPUT.iterdir()):parser.error('Select an empty output directory')
     mf=module('analysis.figures.main_figures','main_figures.py')
@@ -231,15 +233,23 @@ def main():
         mod=module('analysis.figures.synthesis_figure','synthesis_figure.py')
         def intercept(fig,*args,**kw):save_uniform(fig,'Fig07_outlook_schematic');raise FinishedFigure()
         Figure.savefig=intercept
-        try:mod.draw()
+        try:mod.draw(out=str(OUTPUT/'Fig07_outlook_schematic'))
         except FinishedFigure:pass
-    elif a.figure=='S15':
-        d=module('analysis.figures.diagnostic_figures','diagnostic_figures.py');d.save=save_uniform;d.bam()
-    elif a.figure.startswith('S'):
+        finally:Figure.savefig=ORIGINAL_SAVEFIG
+    elif a.figure in ['S14','S15','S16','S17','S18','S19']:
+        d=module('analysis.figures.diagnostic_figures','diagnostic_figures.py')
+        targets={'S14':('absolute','FigS14_absolute_passage_recurvature'),
+                 'S15':('bam','FigS15_bam_baseline_skill'),
+                 'S16':('steering','FigS16_steering_layer_regressions'),
+                 'S17':('steering','FigS17_circulation_geometry_diagnostics'),
+                 'S18':('hko','FigS18_hko_common_window'),
+                 'S19':('d26','FigS19_d26_parallel_exposure')}
+        renderer,stem=targets[a.figure]
+        d.save=lambda fig,name:save_uniform(fig,name) if name==stem else plt.close(fig)
+        getattr(d,renderer)()
+    else:
         si=module('analysis.figures.si_four_agency_figures','si_four_agency_figures.py')
         si.save=lambda fig,stem,key,title,scale:save_uniform(fig,stem,scale=scale)
         getattr(si,a.figure)()
-    else:
-        d=module('analysis.figures.diagnostic_figures','diagnostic_figures.py');d.save=save_uniform;getattr(d,a.figure)()
 
 if __name__=='__main__':main()

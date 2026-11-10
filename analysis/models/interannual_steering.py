@@ -50,7 +50,8 @@ def _interp2(field: np.ndarray, lat0: float, dlat: float, nlat: int,
              lon0: float, dlon: float, nlon: int, la: float, lo: float) -> float:
     """标量双线性插值。
 
-    与 `cfs.bilinear` 数学等价，使用标量运算避免逐点创建临时数组。
+    与 `cfs.bilinear` 数学等价，但不创建临时数组——原实现每步为单个点分配
+    多个 numpy 数组，在 21 次积分、约 35 万个点的规模下开销占绝对主导。
     """
     fy = (la - lat0) / dlat
     fx = (lo - lon0) / dlon
@@ -112,7 +113,7 @@ def main() -> None:
     prev = json.loads((_LAYOUT_ROOT / 'results/models/counterfactual/criteria.json').read_text(encoding="utf-8"))
     par = prev["calibration"]
     print(f"沿用主试验标定 α={par['alpha']:.3f} beta=({par['u_beta']:+.2f},{par['v_beta']:+.2f})"
-          f"（固定标定参数）")
+          f"（读自 results/criteria.json，未重新标定）")
 
     g = tracks.groupby("sid")
     seeds = g.first().reset_index()[["sid", "season", "lat", "lon", "iso_time"]]

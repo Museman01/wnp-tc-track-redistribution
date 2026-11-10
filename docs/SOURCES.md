@@ -19,13 +19,3 @@ Original third-party terms apply to observations, reanalysis inputs, geographic
 data and redistributed subsets. The project's MIT software license and CC BY
 4.0 analytical-output license do not replace those terms. GSHHG notices are
 retained with its input files.
-
-Table S7 reporting data are in
-`results/circulation/storm_sampling/table_s7_reporting.csv`. They combine the
-retained three-agency exceedance counts in
-`data/reference/storm_sampling/permutation_test.json` with the HKO counts in
-`results/agency_comparison/table_s7_permutation_four_agency.csv`.
-The permutation formula and calculation command are described in
-`docs/RUNNING.md`.
-
-ERA5 hourly pressure-level data: Copernicus Climate Change Service (2018), https://doi.org/10.24381/cds.bd0915c6. The six-hourly selection and daily preprocessing are specified in [SUBMONTHLY_STEERING.md](SUBMONTHLY_STEERING.md).

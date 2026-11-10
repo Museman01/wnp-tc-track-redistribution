@@ -1,3 +1,7 @@
 n_permutations: 9999
 n_bootstrap: 4999
 random_seed: 202406
+landfall:
+  maximum_track_gap_hours: 12
+  minimum_event_separation_hours: 12
+  coastline: data/raw/GSHHG/GSHHS_shp/h/GSHHS_h_L1.shp

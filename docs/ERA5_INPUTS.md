@@ -40,8 +40,8 @@ The requested wind slices, z500 and vo850 must be finite on the selected grid.
 From the extracted archive root, after preparing the pressure-level input:
 
 ```bash
-python -B -m analysis.circulation.steering_flow
-python -B -c "from analysis.circulation.steering_layer_diagnostics import derive; derive()"
+python -B -m analysis.circulation.steering_flow --output-dir analysis_output/era5
+python -B -c "from analysis.circulation.steering_layer_diagnostics import derive; derive(steering_path='analysis_output/era5/steering.nc', output_dir='analysis_output/era5')"
 ```
 
 The deep-layer wind is the trapezoidal pressure integral at 300, 400, 500,
@@ -55,7 +55,9 @@ The shallow-layer wind uses [500, 600, 700, 850] hPa and trapezoidal weights
 [50, 100, 125, 75]/350. data/derived/steering_850_500.nc contains
 u_steer and v_steer for 1966–2025, shape (720, 261, 401), in m s-1.
 The second command also generates data/derived/circulation_monthly_coarse.npz.
-Use a separate extraction to retain the distributed processed results.
+These commands write the regenerated fields to `analysis_output/era5/`. Analyses
+that read the canonical `data/interim/` or `data/derived/` paths require the
+corresponding inputs at those locations.
 
 The three pressure-level/steering files are obtained or regenerated separately
 for fine-grid ERA5 analyses. Regional OHC300/D26 inputs and processed circulation

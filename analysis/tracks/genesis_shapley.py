@@ -8,7 +8,8 @@ import pandas as pd
 
 
 
-from analysis.shared.record_composition import DATA, END, START, annual_fields, ensure_dirs, grid_edges, load_agency_tracks, load_primary_tracks
+from core.paths import create_new_output_dir
+from analysis.shared.record_composition import END, START, annual_fields, grid_edges, load_agency_tracks, load_primary_tracks
 
 
 
@@ -262,9 +263,9 @@ def run_one(catalog, tracks, gen_lon_width=10.0, gen_lat_width=5.0, bootstrap=Tr
 
 
 
-def run() -> None:
+def run(output_dir) -> None:
 
-    ensure_dirs()
+    out=create_new_output_dir(output_dir)
 
     catalogs = {"PRIMARY": load_primary_tracks()}
 
@@ -308,11 +309,11 @@ def run() -> None:
 
                 s.loc[s["catalog"] == catalog, f"{variable}_boot_hi"] = hi
 
-    s.to_csv(DATA / "wnp_tc_genesis_propagation_summary.csv", index=False)
+    s.to_csv(out / "wnp_tc_genesis_propagation_summary.csv", index=False)
 
-    b.to_csv(DATA / "wnp_tc_genesis_propagation_bootstrap.csv", index=False)
+    b.to_csv(out / "wnp_tc_genesis_propagation_bootstrap.csv", index=False)
 
-    np.savez_compressed(DATA / "wnp_tc_genesis_propagation_fields.npz", **payload)
+    np.savez_compressed(out / "wnp_tc_genesis_propagation_fields.npz", **payload)
 
     print(s.to_string(index=False))
 
@@ -321,13 +322,11 @@ def run() -> None:
 
 
 if __name__ == "__main__":
-
-    import sys
-
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    run()
+    import argparse
+    from pathlib import Path
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output-dir',type=Path,required=True)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to calculate decompositions')
+    run(args.output_dir)

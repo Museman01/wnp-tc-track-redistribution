@@ -4,7 +4,6 @@ from core.paths import PROJECT as _LAYOUT_ROOT
 
 
 
-import hashlib
 
 import importlib
 
@@ -76,17 +75,6 @@ def write_json(path: Path, obj: dict) -> None:
 
 
 
-def sha256(path: Path) -> str:
-
-    h = hashlib.sha256()
-
-    with path.open("rb") as f:
-
-        for block in iter(lambda: f.read(1024 * 1024), b""):
-
-            h.update(block)
-
-    return h.hexdigest()
 
 
 
@@ -490,43 +478,6 @@ def block_permutation_projection(
 
 
 
-def block_permutation_scalar(
-
-    values: np.ndarray,
-
-    early_idx: np.ndarray,
-
-    late_idx: np.ndarray,
-
-    block: int = 3,
-
-    nperm: int = 9999,
-
-    seed: int = SEED,
-
-    years: np.ndarray | None = None,
-
-) -> tuple[float, float]:
-
-    values = np.asarray(values, dtype=float)
-
-    observed = float(values[late_idx].mean() - values[early_idx].mean())
-
-    blocks = temporal_blocks(len(values), block, years)
-
-    rng = np.random.default_rng(seed)
-
-    exceed = 0
-
-    for _ in range(nperm):
-
-        order = np.concatenate([blocks[i] for i in rng.permutation(len(blocks))])
-
-        diff = values[order[late_idx]].mean() - values[order[early_idx]].mean()
-
-        exceed += abs(diff) >= abs(observed)
-
-    return observed, (exceed + 1) / (nperm + 1)
 
 
 
@@ -607,3 +558,4 @@ def sen_mk(years: np.ndarray, values: np.ndarray) -> dict[str, float | str | int
         "mk_trend": str(m.trend),
 
     }
+

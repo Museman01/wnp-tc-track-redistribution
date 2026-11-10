@@ -108,3 +108,4 @@ def save(fig,name,number=None,title=None):
     fig.savefig(output_path(f'figures/{name}.pdf'),bbox_inches='tight',metadata=meta)
 
     plt.close(fig);print('Figure',name,flush=True)
+

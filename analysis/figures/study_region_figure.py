@@ -14,7 +14,7 @@ import pymupdf
 
 from PIL import Image
 
-from core.paths import output_path,write_json
+from core.paths import output_path
 
 
 
@@ -168,8 +168,12 @@ def segments(x0,x1,blocked):
 
 
 
-def main():
+def main(output):
 
+    out=(_LAYOUT_ROOT / output).resolve()
+    if not out.is_relative_to(_LAYOUT_ROOT.resolve()): raise ValueError('Output must remain within the project')
+    if any(Path(str(out)+ext).exists() for ext in ('.pdf','.png')): raise FileExistsError('Refusing to overwrite existing figures')
+    out.parent.mkdir(parents=True,exist_ok=True)
     doc=pymupdf.open(SRC);page=doc[0]
 
     rivers=strip_rivers(doc,page)
@@ -182,7 +186,7 @@ def main():
 
     xref=page.get_images()[0][0];info=doc.extract_image(xref)
 
-
+    
 
     hires=output_path('data/figure_inputs/mff_relief_z7_platecarree.png')
 
@@ -226,28 +230,20 @@ def main():
 
                       'subject':'Journal of Geophysical Research: Atmospheres Figure 1','creator':'Matplotlib','author':'Museman X'})
 
-    # Serialize the PDF before writing its bytes to the output path.
 
-    pdf=output_path('figures/Fig01_study_region.pdf');data=doc.tobytes(garbage=3,deflate=True);pdf.write_bytes(data)
+    data=doc.tobytes(garbage=3,deflate=True);Path(str(out)+'.pdf').write_bytes(data)
 
-    pix=pymupdf.open(stream=data,filetype='pdf')[0].get_pixmap(dpi=600);output_path('figures/Fig01_study_region.png').write_bytes(pix.tobytes('png'))
-
-    write_json('results/diagnostics/study_region.json',dict(status='PASS',basemap_pixels=list(new.shape[1::-1]),source='Reference PDF layout; Maps-For-Free relief at 30% colour saturation and 30% opacity over white',terrain_tint=TERRAIN_TINT,terrain_saturation=TERRAIN_SATURATION,lightening_method="PIL Color factor 0.30, then white blend at opacity 0.30",river_groups_removed=rivers,
-
-        sea_pixel_fraction=round(float(sea_fraction),4),added=['40°N northern limit of track-composition domain (dashed)','20°N (dotted)'],png_size=[pix.width,pix.height]))
+    pix=pymupdf.open(stream=data,filetype='pdf')[0].get_pixmap(dpi=600);Path(str(out)+'.png').write_bytes(pix.tobytes('png'))
 
     print('Figure 1 written',pix.width,pix.height)
 
 
 
 if __name__=='__main__':
-
-    import sys
-
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main()
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output',required=True,help='New output stem within the project')
+    args=parser.parse_args()
+    if not args.execute: parser.error('add --execute to create the figure')
+    main(args.output)

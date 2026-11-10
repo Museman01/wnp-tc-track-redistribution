@@ -84,7 +84,7 @@ def main():
     root=a.root.resolve();a.output.mkdir(parents=True,exist_ok=False)
     base=root/'data/processed/submonthly_steering';results=root/'results/circulation/submonthly_steering'
     if a.make_anchors:
-        labels,keys=validate_labels(pd.read_csv(base/'daily_regimes.csv'))
+        labels,keys=validate_labels(pd.read_csv(results/'daily_regimes.csv'))
         domain=pd.read_csv(base/'domain_ts_standard.csv');full=pd.read_csv(base/'full_ts_standard.csv')
         anchors,excluded=storm_anchors(full,set(domain.sid),labels)
         anchors.to_csv(a.output/'storm_anchors_and_recurvature.csv',index=False);excluded.to_csv(a.output/'storm_anchor_exclusions.csv',index=False)
@@ -93,7 +93,7 @@ def main():
         frame,_=logistic_inference(anchors,keys)
         family=np.r_[pd.read_csv(results/'shapley_projection_summary.csv').permutation_p,pd.read_csv(results/'overall_period_change_tests.csv').permutation_p,frame.permutation_p]
         if len(family)!=11:raise ValueError('Expected the four decomposition, four overall and three logistic tests')
-        frame['q_bh_scalar_family']=bh_fdr(family)[-3:]
+        frame['q_bh_scalar_family11']=bh_fdr(family)[-3:]
     else:
         n,s=logistic_counts(anchors,keys);beta,se=logistic_pair(n,s)
         frame=pd.DataFrame(dict(model=['period_only','period_plus_regime','adjusted_minus_unadjusted'],beta=beta,odds_ratio=np.exp(beta),year_cluster_se=se))

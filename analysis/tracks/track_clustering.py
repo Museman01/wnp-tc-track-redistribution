@@ -1,6 +1,7 @@
-'模糊 c 均值路径分型。\n\n产出 processed/track_clusters.csv（逐 TC 全部隶属度）与 cluster_model.npz。\n轨迹按真实相对时间连续插值到 20 点，经度 unwrap 并作纬度尺度\n修正，特征标准化；k=3..7 和多初值下比较 Xie–Beni、FPC 与稳定性，保存全部隶属度。\n'
+'模糊 c 均值路径分型。\n\n产出 processed/clustering/track_clusters.csv（逐 TC 全部隶属度）与 cluster_model.npz。\n轨迹按真实相对时间连续插值到 20 点，经度 unwrap 并作纬度尺度\n修正，特征标准化；k=3..7 和多初值下比较 Xie–Beni、FPC 与稳定性，保存全部隶属度。\n'
 import pandas as pd, numpy as np, skfuzzy as fuzz
 from sklearn.preprocessing import StandardScaler
+from pathlib import Path
 from core.utils import load_config
 
 N = 20
@@ -31,6 +32,11 @@ def xb_index(X, cntr, u, m=2):
 
 def main():
     cfg = load_config()
+    output = Path(cfg["paths"]["processed"]) / "clustering"
+    targets = ["track_clusters.csv", "cluster_model.npz"]
+    if any((output / name).exists() for name in targets):
+        raise FileExistsError(f"Refusing to overwrite existing clustering outputs: {output}")
+    output.mkdir(parents=True, exist_ok=True)
     tr = pd.read_csv(f"{cfg['paths']['processed']}/tracks.csv", parse_dates=["iso_time"])
     tr = tr[tr.wind >= cfg["ts_threshold_kt"]].copy()
     if "nature" in tr:
@@ -67,8 +73,8 @@ def main():
     # 除最大隶属度外，保留对每一簇的完整隶属度。
     for j in range(k):
         tab[f"membership_c{j}"] = u[j]
-    tab.to_csv(f"{cfg['paths']['processed']}/track_clusters.csv", index=False)
-    np.savez(f"{cfg['paths']['processed']}/cluster_model.npz", centers=cntr,
+    tab.to_csv(output / "track_clusters.csv", index=False)
+    np.savez(output / "cluster_model.npz", centers=cntr,
              scaler_mean=scaler.mean_, scaler_scale=scaler.scale_, k=k, xb=xb, fpc=fpc, seed=seed)
     print(f"track_clusters.csv: {len(tab)} storms, k={k}, XB={xb:.3f}, FPC={fpc:.3f}; "
           f"sizes={np.bincount(tab.cluster, minlength=k).tolist()}")

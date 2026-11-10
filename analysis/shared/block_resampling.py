@@ -96,25 +96,6 @@ def moving_block_sample(x: np.ndarray, block: int, rng: np.random.Generator) -> 
 
 
 
-def block_bootstrap_difference_ci(early, late, *, block=3, nboot=4999, seed=202406):
-
-    early = np.asarray(early, dtype=float)
-
-    late = np.asarray(late, dtype=float)
-
-    rng = np.random.default_rng(seed)
-
-    samples = np.empty(nboot)
-
-    for i in range(nboot):
-
-        a = moving_block_sample(early, block, rng)
-
-        b = moving_block_sample(late, block, rng)
-
-        samples[i] = np.nanmean(b) - np.nanmean(a)
-
-    return tuple(np.nanpercentile(samples, [2.5, 97.5]))
 
 
 
@@ -241,3 +222,4 @@ def trend_summary(years, values):
         })
 
     return result
+

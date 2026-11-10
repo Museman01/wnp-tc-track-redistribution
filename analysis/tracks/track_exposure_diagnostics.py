@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
-import json
 
+from pathlib import Path
 import numpy as np
 
 import pandas as pd
 
-from core.paths import PROJECT,output_path,write_json
+from core.paths import write_json
 
 from analysis.shared.agency_catalogues import all_catalogues, primary_ts, domain, annual_fields
 
@@ -18,7 +18,7 @@ from analysis.tracks.track_metrics import recurvature
 
 
 
-def bam_report(primary):
+def bam_report(primary, output_root):
 
     a=np.load(_LAYOUT_ROOT / 'results/models/counterfactual/fields.npz')
 
@@ -44,7 +44,7 @@ def bam_report(primary):
 
             'tv_amplitude_ratio':tv(x)/tv(d),'projection_on_observed_axis':float(x@d/(d@d))})
 
-    pd.DataFrame(scenarios).to_csv(_LAYOUT_ROOT / 'results/models/bam_existing_scenarios.csv',index=False)
+    pd.DataFrame(scenarios).to_csv(output_root / 'results/models/bam_existing_scenarios.csv',index=False)
 
     baseline=[]
 
@@ -62,7 +62,7 @@ def bam_report(primary):
 
             'observed_share_west125':float(obs[xx.ravel()<125].sum()),'simulated_share_west125':float(sim[xx.ravel()<125].sum())})
 
-    pd.DataFrame(baseline).to_csv(_LAYOUT_ROOT / 'results/models/bam_existing_baseline_skill.csv',index=False)
+    pd.DataFrame(baseline).to_csv(output_root / 'results/models/bam_existing_baseline_skill.csv',index=False)
 
     residual=a['d_full']-a['d_steer']-a['d_loc']-a['d_life']
 
@@ -70,7 +70,7 @@ def bam_report(primary):
 
     gap=(g.iso_time.diff()/pd.Timedelta(hours=1)).dropna()
 
-    write_json('results/models/bam_existing_diagnostics.json',{'observed_reconstruction_maxabs':error,
+    write_json(output_root / 'results/models/bam_existing_diagnostics.json',{'observed_reconstruction_maxabs':error,
 
         'observed_tv':tv(d),'single_factor_sum_residual_tv':tv(residual),
 
@@ -84,7 +84,7 @@ def bam_report(primary):
 
 
 
-def absolute_metrics(catalogues,primary):
+def absolute_metrics(catalogues,primary,output_root):
 
     annual=[]; genesis=[]; recurrence=[]
 
@@ -148,7 +148,7 @@ def absolute_metrics(catalogues,primary):
 
     ann=pd.DataFrame(annual)
 
-    ann.to_csv(_LAYOUT_ROOT / 'results/tracks/absolute_track_annual.csv',index=False)
+    ann.to_csv(output_root / 'results/tracks/absolute_track_annual.csv',index=False)
 
     summaries=[]
 
@@ -162,13 +162,13 @@ def absolute_metrics(catalogues,primary):
 
                 **{c:float(p[c].mean()) for c in ['ts_track_points','unique_storms','relative_point_share']}})
 
-    pd.DataFrame(summaries).to_csv(_LAYOUT_ROOT / 'results/tracks/absolute_track_periods.csv',index=False)
+    pd.DataFrame(summaries).to_csv(output_root / 'results/tracks/absolute_track_periods.csv',index=False)
 
-    pd.DataFrame(genesis).to_csv(_LAYOUT_ROOT / 'results/genesis/genesis_summary.csv',index=False)
+    pd.DataFrame(genesis).to_csv(output_root / 'results/genesis/genesis_summary.csv',index=False)
 
     rec=pd.DataFrame(recurrence)
 
-    rec.to_csv(_LAYOUT_ROOT / 'results/tracks/recurvature_storms.csv',index=False)
+    rec.to_csv(output_root / 'results/tracks/recurvature_storms.csv',index=False)
 
     result=[]
 
@@ -184,31 +184,35 @@ def absolute_metrics(catalogues,primary):
 
                 'recurving_fraction':len(r)/len(p),'mean_recurve_lat':r.recurve_lat.mean(),'mean_recurve_lon':r.recurve_lon.mean()})
 
-    pd.DataFrame(result).to_csv(_LAYOUT_ROOT / 'results/tracks/recurvature_summary.csv',index=False)
+    pd.DataFrame(result).to_csv(output_root / 'results/tracks/recurvature_summary.csv',index=False)
 
-    write_json('results/diagnostics/existing_evidence.json',{'status':'PASS','bam_observed_reproduced':True,
+    write_json(output_root / 'results/diagnostics/existing_evidence.json',{
 
         'agencies':list(collections),'hko_2025_completed_from_official_source':True,
 
         'recurvature_definition':'inherited analysis.tracks.track_metrics.recurvature; native TS eligibility, no cross-agency wind conversion',
 
-        'limits':['Descriptive metrics, not causal contributions.','HKO includes official 2025 reports; descriptive metrics are separate from four-agency inference.',
+        'limits':['Descriptive metrics, not causal contributions.','HKO includes official 2025 completion; four-agency inference is calculated separately.',
 
                   'A storm can cross multiple latitude bands; unique-storm band counts must not be added.','No claim of an absolute increase without evaluating the relevant count.']})
 
 
 
-def main():
-
+def main(output_root=None):
+    out=(_LAYOUT_ROOT / (output_root or '.')).resolve()
+    if not out.is_relative_to(_LAYOUT_ROOT.resolve()):raise ValueError('Output root must remain within the project')
+    names=['results/models/bam_existing_scenarios.csv','results/models/bam_existing_baseline_skill.csv','results/models/bam_existing_diagnostics.json','results/tracks/absolute_track_annual.csv','results/tracks/absolute_track_periods.csv','results/genesis/genesis_summary.csv','results/tracks/recurvature_storms.csv','results/tracks/recurvature_summary.csv','results/diagnostics/existing_evidence.json']
+    if any((out/name).exists() for name in names):raise FileExistsError('Refusing to overwrite existing scientific outputs')
+    for name in names:(out/name).parent.mkdir(parents=True,exist_ok=True)
     primary=primary_ts()
 
-    bam_report(primary)
+    bam_report(primary,out)
 
     print('BAM observed contrast and scenario diagnostics saved.',flush=True)
 
     cats=all_catalogues()
 
-    absolute_metrics(cats,primary)
+    absolute_metrics(cats,primary,out)
 
     print('Absolute, genesis and recurrence metrics saved for PRIMARY/USA/JMA/CMA/HKO.',flush=True)
 
@@ -216,12 +220,10 @@ def main():
 
 if __name__=='__main__':
 
-    import sys
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true');parser.add_argument('--output-root',type=Path)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to calculate track diagnostics')
+    main(args.output_root)
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main()

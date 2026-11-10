@@ -1,15 +1,21 @@
 """逐 TC 路径长度、生命期、移动速度分布。
 
-产出 processed/track_distributions.csv。
+产出 processed/lifecycle/track_distributions.csv。
 仅在热带 TS 阶段计算路径长度和生命期；相邻路段要求 0–12 小时；移速读取同口径
 的 track_metrics。
 """
 import pandas as pd, numpy as np
+from pathlib import Path
 from core.utils import load_config, haversine
 
 
 def main():
     cfg = load_config()
+    output = Path(cfg["paths"]["processed"]) / "lifecycle"
+    targets = ['track_distributions.csv']
+    if any((output / name).exists() for name in targets):
+        raise FileExistsError(f"Refusing to overwrite existing analysis outputs: {output}")
+    output.mkdir(parents=True, exist_ok=True)
     tr = pd.read_csv(f"{cfg['paths']['processed']}/tracks.csv", parse_dates=["iso_time"])
     m = pd.read_csv(f"{cfg['paths']['processed']}/track_metrics.csv")
     rows = []
@@ -31,7 +37,7 @@ def main():
         life = (g["iso_time"].max() - g["iso_time"].min()) / np.timedelta64(1, "h")
         rows.append({"sid": sid, "track_len_km": length, "lifetime_h": life})
     out = pd.DataFrame(rows).merge(m[["sid", "trans_speed"]], on="sid", how="left")
-    out.to_csv(f"{cfg['paths']['processed']}/track_distributions.csv", index=False)
+    out.to_csv(output / "track_distributions.csv", index=False)
     print(f"track_distributions.csv: {len(out)} storms; median len={out.track_len_km.median():.0f} km, "
           f"median life={out.lifetime_h.median():.0f} h")
 

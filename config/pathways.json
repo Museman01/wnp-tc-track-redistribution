@@ -1,12 +1,24 @@
 {
-  "analysis_name": "pathway_closure",
-  "period_early": [1966, 1995],
-  "period_late": [1996, 2025],
+  "period_early": [
+    1966,
+    1995
+  ],
+  "period_late": [
+    1996,
+    2025
+  ],
   "n_path_points": 20,
   "n_families": 3,
   "fuzzy_m": 2.0,
   "cluster_seeds": 20,
-  "k_scan": [2, 3, 4, 5, 6, 7],
+  "k_scan": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
   "bootstrap_block_years": 3,
   "n_bootstrap": 1999,
   "n_label_permutations": 1999,

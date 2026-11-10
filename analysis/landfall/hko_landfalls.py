@@ -12,9 +12,9 @@ import geopandas as gpd
 
 import shapely
 
-from shapely.geometry import LineString,Point,GeometryCollection
+from shapely.geometry import LineString,Point
 
-from core.paths import PROJECT,output_path,write_json
+from core.paths import PROJECT,output_path
 
 from analysis.shared.agency_catalogues import all_catalogues
 
@@ -166,9 +166,18 @@ def inference(annual):
 
 def main():
 
-    parser=argparse.ArgumentParser();parser.add_argument('--recompute-usa',action='store_true');parser.add_argument('--extend-2025',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--recompute-usa',action='store_true');parser.add_argument('--extend-2025',action='store_true');parser.add_argument('--output-dir',default='results/landfall');args=parser.parse_args()
+    out=(PROJECT / args.output_dir).resolve()
+    if not out.is_relative_to(PROJECT.resolve()):raise ValueError('Output directory must remain within the project')
+    names=['hko_landfall_events.csv','hko_landfall_summary.csv','hko_landfall_annual.csv','hko_landfall_method_reconciliation.csv']
+    cache=_LAYOUT_ROOT / 'results/landfall/hko_landfall_events.csv'
+    if (args.recompute_usa or args.extend_2025) and not cache.is_file():raise FileNotFoundError(cache)
+    required=names if args.recompute_usa or args.extend_2025 or not cache.exists() else names[1:]
+    if not (PROJECT/'data/derived/land_mask.npz').exists():required=required+['land_mask.npz']
+    if any((out/name).exists() for name in required):raise FileExistsError('Refusing to overwrite existing landfall results')
+    out.mkdir(parents=True,exist_ok=True)
 
-    cats=all_catalogues();cache=_LAYOUT_ROOT / 'results/landfall/hko_landfall_events.csv'
+    cats=all_catalogues()
 
     if cache.exists() and not args.recompute_usa and not args.extend_2025:events=pd.read_csv(cache,parse_dates=['time'])
 
@@ -190,7 +199,7 @@ def main():
 
         else:
 
-            mask_info=build_land_mask(cfg);np.savez_compressed(maskpath,mask=mask_info[0])
+            mask_info=build_land_mask(cfg);np.savez_compressed(out/'land_mask.npz',mask=mask_info[0])
 
         print('Land mask and vector coast ready',flush=True)
 
@@ -210,10 +219,6 @@ def main():
 
             prior=pd.read_csv(cache,parse_dates=['time'])
 
-            archive=output_path('results/diagnostics/landfall_boundary_diagnostic_events.csv')
-
-            if not archive.exists():prior.to_csv(archive,index=False)
-
             frames.append(prior.loc[~prior.agency.eq('USA')])
 
         for agency,cat in cats.items():
@@ -224,7 +229,7 @@ def main():
 
             e=detect(cat,geoms,tree,mask_info,cfg,start=2025 if args.extend_2025 else 1966);frames.append(e);print('Exact-vector landfalls',agency,len(e),flush=True)
 
-        events=pd.concat(frames,ignore_index=True);events.to_csv(cache,index=False)
+        events=pd.concat(frames,ignore_index=True);events.to_csv(out/'hko_landfall_events.csv',index=False)
 
     common=set.intersection(*(set(c['eligible_sids']) for c in cats.values()))
 
@@ -258,9 +263,9 @@ def main():
 
     for _,ids in r.groupby(['sample','definition']).groups.items():r.loc[ids,'q_bh_four_agency_family']=bh_fdr(r.loc[ids,'block_permutation_p'])
 
-    r.to_csv(_LAYOUT_ROOT / 'results/landfall/hko_landfall_summary.csv',index=False)
+    r.to_csv(out / 'hko_landfall_summary.csv',index=False)
 
-    pd.DataFrame(yearrows).to_csv(_LAYOUT_ROOT / 'results/landfall/hko_landfall_annual.csv',index=False)
+    pd.DataFrame(yearrows).to_csv(out / 'hko_landfall_annual.csv',index=False)
 
     old=pd.read_csv(_LAYOUT_ROOT / 'results/landfall/landfall_events_exact.csv',parse_dates=['time'])
 
@@ -276,17 +281,7 @@ def main():
 
             'difference':len(b)-len(a)})
 
-    pd.DataFrame(reconcile).to_csv(_LAYOUT_ROOT / 'results/landfall/hko_landfall_method_reconciliation.csv',index=False)
-
-    write_json('results/diagnostics/hko_landfalls.json',{'status':'PASS','method':'Existing 0.02-degree raster candidates refined by exact GSHHG h L1 sea-to-land intersections; 0<gap<=12h; minimum separation 12h applied before native-stage filter.',
-
-        'comparison':'Four native records, 1966-2025; existing 1966-2024 crossings and USA/JMA/CMA 2025 events are combined with HKO 2025 geometric crossings.',
-
-        'source_reconciliation':reconcile,'scope':'Continuous latitude only; named-coast shares not redefined.',
-
-        'limits':['Six-hour straight segments and shoreline resolution limit physical position accuracy.','Event-count comparisons use the supplied reference event sample.']})
-
-
+    pd.DataFrame(reconcile).to_csv(out / 'hko_landfall_method_reconciliation.csv',index=False)
 
 if __name__=='__main__':
 
@@ -299,3 +294,4 @@ if __name__=='__main__':
     sys.argv.remove('--execute')
 
     main()
+

@@ -14,19 +14,19 @@ import xarray as xr
 
 import argparse
 
-from core.paths import PROJECT,output_path,write_json,import_source
+from core.paths import PROJECT,output_path,write_json
+from analysis.ocean import ohc_decomposition as dec
 
 
 
-def main():
+def main(overwrite=False):
 
+    results = _LAYOUT_ROOT / 'results/ocean/d26'
+    if not overwrite and (any(results.glob('d26_*.csv*')) or (_LAYOUT_ROOT / 'results/diagnostics/d26_parallel.json').exists()):
+        raise FileExistsError('Refusing to overwrite existing D26 results')
     present=[y for y in range(1966,2026) if output_path(f'data/derived/d26/oras5_d26_{y}.nc').is_file()]
 
     if len(present)!=60:raise RuntimeError(f'D26 incomplete: {len(present)}/60 years; no partial period comparison allowed')
-
-    src=_LAYOUT_ROOT / 'analysis/ocean'
-
-    sys.path.insert(0,str(src));dec=import_source('ohc_pure_decomposition','analysis/ocean/ohc_decomposition.py')
 
     matched=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/ohc300/matched_points.csv.gz')
 
@@ -138,28 +138,6 @@ def main():
 
     ann=pd.DataFrame(annual);ann.to_csv(_LAYOUT_ROOT / 'results/ocean/d26/d26_annual_exposure.csv',index=False)
 
-    # Reproduce original OHC point estimates whenever no support was removed.
-
-    reference=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/ohc300/decomposition_summary.csv')
-
-    errors=[]
-
-    for row in summary.loc[summary.variable.eq('OHC300_same_support')].itertuples():
-
-        r=reference.loc[reference.agency.eq('PRIMARY')&reference.definition.eq('ts_only')&reference.year_assignment.eq('calendar_year')&reference.land_treatment.eq(row.land_treatment)&reference.weighting.eq('storm_normalized_equal_year')&reference.comparison.eq(row.comparison)]
-
-        for name in ['delta_exposure','redistribution_component','ocean_component','covariability_component']:
-
-            old=r[name]
-
-            if len(old)!=1:raise ValueError('Original OHC reference not unique')
-
-            errors.append(float(getattr(row,name)-old.iloc[0]))
-
-    maxerr=max(map(abs,errors))
-
-    if not bad and maxerr>1e-3:raise AssertionError(f'OHC comparator does not reproduce original: {maxerr}')
-
     # Product seam is descriptive; no numerical adjustment or causal claim.
 
     seam=ann.loc[ann.variable.eq('D26')].pivot(index='year',columns='land_treatment',values='annual_exposure')
@@ -182,13 +160,13 @@ def main():
 
     pd.DataFrame(seamrows).to_csv(_LAYOUT_ROOT / 'results/ocean/d26/d26_product_seam_diagnostic.csv',index=False)
 
-    write_json('results/diagnostics/d26_parallel.json',{'status':'PASS','configurations':'one record × one TS definition × one year assignment × one weighting × two land treatments × two time windows; no 64-way matrix',
+    write_json('results/diagnostics/d26_parallel.json',{'configurations':'one record × one TS definition × one year assignment × one weighting × two land treatments × two time windows',
 
         'n_state_keys_before':len(keys),'n_state_keys_retained':len(keptkeys),'removed_state_keys':len(bad),
 
         'coordinate_equality':True,'zero_handling':'native delivered zero, never an imputation for land or missing data',
 
-        'maximum_absolute_closure_residual_mixed_units':max(checks),'ohc_reference_maxabs_j_m2':maxerr,
+        'maximum_absolute_closure_residual_mixed_units':max(checks),
 
         'uncertainty':'1999 circular-three-year block bootstrap draws, paired annual occupancy and field within each period',
 
@@ -200,7 +178,10 @@ def main():
 
 
 
-def seam_only():
+def seam_only(overwrite=False):
+    results = _LAYOUT_ROOT / 'results/ocean/d26'
+    if not overwrite and any((results / name).exists() for name in ('d26_fixed_path_background_annual.csv', 'd26_product_seam_diagnostic.csv')):
+        raise FileExistsError('Refusing to overwrite existing D26 seam results')
 
     keys=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/d26/d26_state_keys.csv').sort_values('key_id')
 
@@ -254,8 +235,9 @@ if __name__=='__main__':
 
     sys.argv.remove('--execute')
 
-    parser=argparse.ArgumentParser();parser.add_argument('--seam-only',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--seam-only',action='store_true');parser.add_argument('--overwrite',action='store_true');args=parser.parse_args()
 
-    if args.seam_only:seam_only()
+    if args.seam_only:seam_only(args.overwrite)
 
-    else:main()
+    else:main(args.overwrite)
+

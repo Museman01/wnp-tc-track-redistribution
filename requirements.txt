@@ -18,5 +18,4 @@ PyMuPDF==2.0
 cartopy==0.25.0
 scikit-fuzzy==0.5.0
 joblib==1.5.3
-pytest==9.1.1
 threadpoolctl>=3

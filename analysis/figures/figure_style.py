@@ -1,16 +1,17 @@
-"""AGU 版式的绘图配色、字体与版面设置。
+"""AGU 版式与全工程统一绘图风格。
+
+所有活动出图函数复用本模块，保持配色、字体和版面一致。
 """
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.patheffects as pe
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import cartopy.crs as ccrs
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
-from core.utils import load_config, ROOT
+from core.utils import load_config
 
 # ---- 字体与版式（AGU 图件统一使用 Arial 无衬线字体）----
 mpl.rcParams.update({
@@ -22,7 +23,7 @@ mpl.rcParams.update({
     "mathtext.bf": "Arial:bold",
     "mathtext.sf": "Arial",
     "axes.unicode_minus": False,
-    # Font sizes support reading at manuscript-page scale.
+    # Typography for manuscript-page scale.
     "font.size": 11, "axes.titlesize": 12, "axes.labelsize": 11,
     "xtick.labelsize": 9.5, "ytick.labelsize": 9.5, "legend.fontsize": 9.5,
     "axes.titlepad": 7,
@@ -52,9 +53,6 @@ SEQ, SEQ_WARM, DIV = "viridis", "magma", "RdBu_r"
 MONET_DIV = LinearSegmentedColormap.from_list(
     "monet_div", ["#7C3E50", "#D98C9C", "#F2ECE3", "#8FBDC4", "#34707F"])
 
-# ---- 小波例外：沿用常规感知顺序色标，不套莫奈 ----
-WAVELET_CMAP = "magma"
-
 PROJ = ccrs.PlateCarree()
 _GSHHG_LAND = None
 
@@ -80,23 +78,6 @@ def _load_gshhg_land():
 
 
 
-def make_map_ax(ax=None, figsize=(COL1, COL1 * 0.7), *,
-                left_labels=True, bottom_labels=True):
-    """带 GSHHG 海岸线、经纬网和比例尺的地图 ax（不绘制国境线）。"""
-    cfg = load_config()
-    r = cfg["regions"]["tc"]   # 地图范围用 TC 统计区
-    if ax is None:
-        fig = plt.figure(figsize=figsize)
-        ax = fig.add_subplot(1, 1, 1, projection=PROJ)
-    ax.set_extent([r["lon_min"], r["lon_max"], r["lat_min"], r["lat_max"]], crs=PROJ)
-    land = _load_gshhg_land()
-    ax.add_geometries(land.geometry, crs=PROJ, facecolor="#EDEAE3",
-                      edgecolor="#5A5A5A", linewidth=0.35, zorder=2)
-    gl = ax.gridlines(draw_labels=True, lw=0.2, color="#B0B0B0", alpha=0.5)
-    gl.top_labels = gl.right_labels = False
-    gl.left_labels = left_labels
-    gl.bottom_labels = bottom_labels
-    return ax
 
 
 def make_plain_map_ax(ax=None, figsize=(COL1, COL1 * 0.7), *,
@@ -160,6 +141,8 @@ def save(fig, name):
     """同时输出 600 dpi PNG 与矢量 PDF。"""
     FIGDIR.mkdir(parents=True, exist_ok=True)
     stem = name.rsplit(".", 1)[0]
+    if any((FIGDIR / f"{stem}.{ext}").exists() for ext in ("png", "pdf")):
+        raise FileExistsError(f"Refusing to overwrite existing figure: {stem}")
     # Title-free manuscript variant: captions carry the scientific description,
     # while axes retain labels/units, legends, panel letters and annotations.
     if fig._suptitle is not None:

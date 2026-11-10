@@ -200,12 +200,13 @@ def write_s7_reporting(source_root, output_csv, overwrite=False):
     return rows, differences
 
 
-def run_analysis():
+def run_analysis(output_dir):
+    dest = (_LAYOUT_ROOT / output_dir).resolve()
+    if not dest.is_relative_to(_LAYOUT_ROOT.resolve()): raise ValueError('Output must remain within the project')
+    if dest.exists(): raise FileExistsError('Provide a new output directory')
+    dest.mkdir(parents=True)
     cfg = sts.load_config()
     months = cfg["typhoon_season"]
-    dest = _LAYOUT_ROOT / 'results/circulation/storm_sampling'
-    dest.mkdir(parents=True, exist_ok=True)
-
     perm = permutation_test(cfg, months)
     with open(dest / "permutation_test.json", "w", encoding="utf-8") as fh:
         json.dump(perm, fh, indent=2, ensure_ascii=False)
@@ -224,17 +225,20 @@ def main():
     parser.add_argument('--source-root',type=Path,default=TASK)
     parser.add_argument('--output-csv',type=Path)
     parser.add_argument('--execute',action='store_true')
-    parser.add_argument('--overwrite',action='store_true')
+    parser.add_argument('--output-dir',type=Path)
     args = parser.parse_args()
     if args.report_s7:
         if not args.execute or args.output_csv is None:
             parser.error('--report-s7 requires --execute and an explicit --output-csv')
-        rows, differences = write_s7_reporting(args.source_root,args.output_csv,args.overwrite)
+        if args.output_dir is not None: parser.error('--output-dir applies to the sampling analysis')
+        output=(_LAYOUT_ROOT / args.output_csv).resolve()
+        if not output.is_relative_to(_LAYOUT_ROOT.resolve()): parser.error('output must remain within the project')
+        rows, differences = write_s7_reporting(args.source_root,output)
         print(str(args.output_csv))
     else:
-        if args.output_csv is not None or args.execute or args.overwrite or args.source_root != TASK:
-            parser.error('Reporting options require --report-s7')
-        run_analysis()
+        if args.output_csv is not None or not args.execute or args.output_dir is None or args.source_root != TASK:
+            parser.error('sampling analysis requires --execute and --output-dir')
+        run_analysis(args.output_dir)
 
 
 if __name__ == '__main__':

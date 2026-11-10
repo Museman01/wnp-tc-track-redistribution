@@ -208,19 +208,21 @@ def test_fields(records, changes, agency, definition, width, fields, blocks, cfg
 
 
 
-def run():
+def run(output_dir, events_path=None):
+
+    from pathlib import Path
+    from core.paths import create_new_output_dir
 
     cfg = load_config()
 
-    out = _LAYOUT_ROOT / 'results/tracks' / "04_track_density_sensitivity"
-
-    out.mkdir(parents=True, exist_ok=True)
+    out = create_new_output_dir(output_dir)
 
     source = read_ibtracs_agencies(PROJECT / "data" / "raw" / "IBTrACS.WP.v04r01.csv", 1945, 2025)
 
     catalogs = {agency: build_agency_catalog(source, agency) for agency in AGENCIES}
 
-    events = pd.read_csv(_LAYOUT_ROOT / 'results/tracks' / "01_landfall_latitude" / "landfall_events_exact.csv")
+    events_path = Path(events_path) if events_path else PROJECT / "results" / "landfall" / "landfall_events_exact.csv"
+    events = pd.read_csv(events_path)
 
     events["time"] = pd.to_datetime(events["time"])
 
@@ -272,7 +274,7 @@ def run():
 
 
 
-        # Grid-resolution sensitivity for the occupancy definition.
+        # Resolution checks for the newly introduced occupancy definition.
 
         for width in [1.0, 5.0]:
 
@@ -328,7 +330,7 @@ def run():
 
 - 全生命史：对已达到机构原生热带风暴阈值的风暴，使用该机构全部原始位置报告，与仅热带风暴及以上阶段比较。
 
-- 新口径均在2.5°网格作三机构检验；二元占用另作1°和5°分辨率检验；二元占用和登陆前路径另作2、3、4、5年块敏感性。既有轨迹点/风暴等权的三档网格和四档分块结果保留在`data/wnp_tc_robustness_matrix.csv`，不重复耗费计算。
+- 新口径均在2.5°网格作三机构检验；二元占用另作1°和5°分辨率检验；二元占用和登陆前路径另作2、3、4、5年块敏感性。既有轨迹点/风暴等权的分辨率和分块敏感性见稳健性结果表。
 
 - 每项均比较1966—1995与1996—2025，置换{cfg['n_permutations']}次，随机种子{cfg['random_seed']}；空间相关以三机构后期减前期差值图计算。
 
@@ -344,12 +346,14 @@ def run():
 
 if __name__ == "__main__":
 
-    import sys
+    from pathlib import Path
+    import argparse
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    run()
+    parser = argparse.ArgumentParser(description="Track path-definition validation.")
+    parser.add_argument("--execute", action="store_true", help="confirm execution")
+    parser.add_argument("--output-dir", required=True, help="new project-local output directory")
+    parser.add_argument("--events", type=Path, help="exact landfall events CSV")
+    args = parser.parse_args()
+    if not args.execute:
+        parser.error("add --execute to write outputs")
+    run(args.output_dir, args.events)

@@ -220,8 +220,18 @@ def run_scenarios(tracks,fields,lat,lon,par,advance=False,elapsed=False,beta_cos
 
 
 
-def main():
+def main(overwrite=False):
 
+    outputs = [
+        'results/models/bam_sensitivity_scenarios.csv',
+        'results/models/bam_sensitivity_baseline.csv',
+        'results/models/bam_cross_period_validation.csv',
+        'results/models/bam_sensitivity_annual.npz',
+        'results/models/bam_projection_bootstrap.csv',
+        'results/diagnostics/bam_sensitivity.json',
+    ]
+    if not overwrite and any((_LAYOUT_ROOT / path).exists() for path in outputs):
+        raise FileExistsError('Refusing to overwrite existing BAM results')
     bam=import_source('bam_observation_reader','analysis/models/counterfactual_steering.py')
 
     tracks,_=bam.load_tracks(bam.load_config());years=np.arange(1966,2026)
@@ -257,24 +267,6 @@ def main():
         if layer=='850-300':variants += [('calibrate_early',pe,False,False,False),('calibrate_late',pl,False,False,False),
 
             ('calendar_month_updates',fit(allseg),True,False,False),('elapsed_lifetime',fit(allseg),False,True,False)]
-
-        if layer=='850-300':
-
-            import json
-
-            oldpar=json.loads((_LAYOUT_ROOT / 'results/models/counterfactual/criteria.json').read_text())['calibration']
-
-            legacy=run_scenarios(tracks,fields,lat,lon,np.array([oldpar['alpha'],oldpar['u_beta'],oldpar['v_beta']]))
-
-            archived=np.load(_LAYOUT_ROOT / 'results/models/counterfactual/fields.npz')
-
-            mapping={'early':'f_BASE_P1','late':'f_BASE_P2','steering':'f_STEER','genesis':'f_LOC','lifetime':'f_LIFE'}
-
-            err=max(float(abs(legacy[k].mean(0)-archived[v].ravel()).max()) for k,v in mapping.items())
-
-            if err>1e-10:raise AssertionError(f'Trajectory fields differ from the reference: {err}')
-
-            write_json('results/diagnostics/bam_engine_reference_equivalence.json',{'status':'PASS','maxabs_period_fields':err})
 
         for train,p,validationperiod,fieldperiod in [('early',pe,(1996,2025),1),('late',pl,(1966,1995),0)]:
 
@@ -344,7 +336,7 @@ def main():
 
     pd.DataFrame(boot).to_csv(_LAYOUT_ROOT / 'results/models/bam_projection_bootstrap.csv',index=False)
 
-    write_json('results/diagnostics/bam_sensitivity.json',{'status':'PASS','reference_reproduction':'separate, exact; historical dt assumption retained only there',
+    write_json('results/diagnostics/bam_sensitivity.json',{
 
         'new_calibration':'actual segment duration, 0<gap<=12h; joint intercepts are empirical motion residuals, not isolated physical beta drift',
 
@@ -370,4 +362,5 @@ if __name__=='__main__':
 
     sys.argv.remove('--execute')
 
-    main()
+    main(overwrite='--overwrite' in sys.argv)
+

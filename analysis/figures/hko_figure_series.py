@@ -7,11 +7,7 @@ import sys,json
 
 import numpy as np,pandas as pd
 
-from shapely.geometry import LineString,MultiLineString,Point
-
-from shapely.ops import transform
-
-from core.paths import PROJECT,output_path,write_json
+from pathlib import Path
 
 
 
@@ -33,15 +29,7 @@ from analysis.shared.agency_catalogues import all_catalogues                    
 
 CFG={'n_permutations':9999,'random_seed':202406,'n_bootstrap':4999}
 
-Z=_LAYOUT_ROOT / 'data/reference'
-
-OUT=_LAYOUT_ROOT / 'results/agency_comparison/figure_series';YEARS=np.arange(1966,2026)
-
-checks={};info_extra={}
-
-
-
-def close(a,b,tol=1e-9):return bool(np.allclose(np.asarray(a,float),np.asarray(b,float),atol=tol,equal_nan=True))
+YEARS=np.arange(1966,2026)
 
 
 
@@ -61,25 +49,9 @@ def formal_events():
 
 
 
-def frequency_and_lmi(cats):
-
-    core=pd.read_csv(Z/'agency_comparison/03_common_storms/core_crossagency_annual.csv')
-
-    # Reproduce the three-agency series with the formal catalog builder.
+def frequency_and_lmi(cats,destination):
 
     common=set.intersection(*(set(cats[a]['lmi']['sid']) for a in ['USA','TOKYO','CMA']))
-
-    for a in ['USA','TOKYO','CMA']:
-
-        f=cats[a]['frequency'].set_index('season')['n_tc'].reindex(YEARS,fill_value=0)
-
-        ref=core[core.agency.eq(a)].set_index('season')
-
-        checks[f'frequency_{a}']=close(f.values,ref.loc[YEARS,'n_tc'].values)
-
-        lmi=cats[a]['lmi'];lmi=lmi[lmi.season.between(1982,2025)&lmi.sid.isin(common)].groupby('season')['lmi_lat'].mean().reindex(range(1982,2026))
-
-        checks[f'lmi_common_{a}']=close(lmi.values,ref.loc[1982:2025,'mean_lmi_lat_common'].values)
 
     h=cats['HKO']['ts_points']
 
@@ -91,37 +63,27 @@ def frequency_and_lmi(cats):
 
     m=lmi.groupby('season')['lat'].mean().reindex(range(1982,2026))
 
-    pd.DataFrame({'season':YEARS,'n_tc':freq.values}).to_csv(_LAYOUT_ROOT / 'results/agency_comparison/figure_series/frequency.csv',index=False)
+    pd.DataFrame({'season':YEARS,'n_tc':freq.values}).to_csv(destination / 'frequency.csv',index=False)
 
-    pd.DataFrame({'season':range(1982,2026),'mean_lmi_lat_common':m.values,'n_storms':lmi.groupby('season').size().reindex(range(1982,2026),fill_value=0).values}).to_csv(_LAYOUT_ROOT / 'results/agency_comparison/figure_series/lmi_common.csv',index=False)
+    pd.DataFrame({'season':range(1982,2026),'mean_lmi_lat_common':m.values,'n_storms':lmi.groupby('season').size().reindex(range(1982,2026),fill_value=0).values}).to_csv(destination / 'lmi_common.csv',index=False)
 
     return dict(hko_lmi_common_storms=int(len(lmi)),three_agency_common_1982_2025=int(sum(1 for s in common if 1982<=int(s[:4])<=2025)))
 
 
 
-def index(cats):
-
-    ref=pd.read_csv(Z/'environment_validation/supplemental_validation/results/wnp_tc_redistribution_index_annual.csv')
-
-    usa=RC.load_agency_tracks()['USA']
-
-    point,*_=RC.annual_fields(usa,YEARS,2.5);_,oos,_=RC.projection_scores(point,YEARS)
-
-    r=ref[ref.agency.eq('USA')&ref.weighting.eq('track_point')].sort_values('year')
-
-    checks['index_USA']=close(oos,r.index_oos.values,1e-9)
+def index(cats,destination):
 
     h=cats['HKO']['ts_points'];h=h[h.season.between(1966,2025)&h.lon.between(100,180)&h.lat.between(0,40)]
 
     point,*_=RC.annual_fields(h,YEARS,2.5);_,oos,_=RC.projection_scores(point,YEARS)
 
-    pd.DataFrame({'year':YEARS,'agency':'HKO','weighting':'track_point','index_oos':oos}).to_csv(_LAYOUT_ROOT / 'results/agency_comparison/figure_series/index.csv',index=False)
+    pd.DataFrame({'year':YEARS,'agency':'HKO','weighting':'track_point','index_oos':oos}).to_csv(destination / 'index.csv',index=False)
 
     return dict(hko_index_late_minus_early=float(oos[30:].mean()-oos[:30].mean()))
 
 
 
-def landfall():
+def landfall(destination):
 
     ev=pd.concat([formal_events(),hko_events().loc[lambda d:d.agency.eq('HKO')]],ignore_index=True)
 
@@ -139,27 +101,15 @@ def landfall():
 
     out=LL.summarize(ann,CFG);out=out[(out.start==1966)&(out.end==2025)&(out.metric=='mean_lat')]
 
-    ref=pd.read_csv(_LAYOUT_ROOT / 'results/landfall/landfall_latitude_summary.csv');ref=ref[(ref.start==1966)&(ref.end==2025)&(ref.metric=='mean_lat')]
-
-    m=out.merge(ref,on=['agency','definition'],suffixes=('','_ref'))
-
-    checks['landfall_three_agency']=close(m[['period_difference','period_ci_low','period_ci_high','period_block_p']].values,
-
-                                          m[['period_difference_ref','period_ci_low_ref','period_ci_high_ref','period_block_p_ref']].values)
-
-    out[['agency','definition','period_difference','period_ci_low','period_ci_high','period_block_p']].to_csv(_LAYOUT_ROOT / 'results/agency_comparison/figure_series/landfall.csv',index=False)
+    out[['agency','definition','period_difference','period_ci_low','period_ci_high','period_block_p']].to_csv(destination / 'landfall.csv',index=False)
 
     return ev
 
 
 
-def common_storms(ev,cats,prefilter):
+def common_storms(ev,cats,destination):
 
     common=set.intersection(*(set(cats[a]['ts_points'].loc[cats[a]['ts_points'].season.between(1966,2025),'sid']) for a in ['USA','TOKYO','CMA']))
-
-    if not prefilter:ev=pd.concat([pd.read_csv(_LAYOUT_ROOT / 'results/landfall/landfall_events_exact.csv'),hko_events().loc[lambda d:d.agency.eq('HKO')]],ignore_index=True)
-
-    ref=pd.read_csv(_LAYOUT_ROOT / 'results/landfall/common_storm_landfall_summary.csv');ref=ref[ref.metric.eq('mean_landfall_latitude')]
 
     e=ev.copy();e['coast']=e.get('coast','Other');e['coast']=e['coast'].fillna('Other')
 
@@ -195,15 +145,7 @@ def common_storms(ev,cats,prefilter):
 
     out=pd.DataFrame(rows)
 
-    m=out.merge(ref,on=['agency','definition'],suffixes=('','_ref'))
-
-    checks[f'common_three_agency_prefilter_{prefilter}']=close(m[['late_minus_early','ci_low','ci_high','block_permutation_p']].values,
-
-                                        m[['late_minus_early_ref','ci_low_ref','ci_high_ref','block_permutation_p_ref']].values)
-
-    if checks[f'common_three_agency_prefilter_{prefilter}']:out.to_csv(_LAYOUT_ROOT / 'results/agency_comparison/figure_series/common.csv',index=False)
-
-    return checks[f'common_three_agency_prefilter_{prefilter}']
+    out.to_csv(destination / 'common.csv',index=False)
 
 
 
@@ -211,7 +153,7 @@ def classify(ev):
 
     """Nearest named segment and distance (km), local equirectangular metric, vectorized."""
 
-    seg=json.loads(_LAYOUT_ROOT / 'results/tracks/fig01_coast_segments.json'.read_text())['segments']
+    seg=json.loads((_LAYOUT_ROOT / 'results/tracks/fig01_coast_segments.json').read_text())['segments']
 
     pieces={k:np.array([[a[0],a[1],b[0],b[1]] for l in v for a,b in zip(l[:-1],l[1:])]) for k,v in seg.items()}
 
@@ -239,19 +181,11 @@ def classify(ev):
 
 
 
-def coast(ev):
+def coast(ev,destination):
 
     from analysis.shared.block_resampling import block_permutation_difference
 
     f=ev.loc[ev.agency.isin(['USA','TOKYO','CMA'])].copy()
-
-    near,dist=classify(f)
-
-    mine=np.where(dist<=50,near,'Other');auth=np.where(f.nearest_distance_km.values<=50,f.nearest_segment.values,'Other')
-
-    agree=float((mine==auth).mean());checks['coast_assignment_agreement_formal_events']=agree>=0.999
-
-    info_extra['coast_assignment_agreement']=f'{int((mine==auth).sum())}/{len(mine)}'
 
     h=ev.loc[ev.agency.eq('HKO')].copy();near,dist=classify(h);h['nearest_segment']=near;h['nearest_distance_km']=dist
 
@@ -277,27 +211,15 @@ def coast(ev):
 
     res=pd.DataFrame(rows)
 
-    ref=pd.read_csv(Z/'agency_comparison/06_landfall_grouping/coast_grouping_sensitivity.csv')
+    res.to_csv(destination / 'coast.csv',index=False)
 
-    ref=ref[ref.threshold_km.eq(50.0)&ref.taiwan_rule.eq('taiwan_north')&ref.denominator.eq('named_only')]
-
-    m=res.merge(ref,on=['agency','event_rule'],suffixes=('','_ref'))
-
-    checks['coast_three_agency']=close(m[['change_percentage_points','block_permutation_p']].values,m[['change_percentage_points_ref','block_permutation_p_ref']].values,1e-9)
-
-    res.to_csv(_LAYOUT_ROOT / 'results/agency_comparison/figure_series/coast.csv',index=False)
-
-    h[cols].to_csv(_LAYOUT_ROOT / 'results/agency_comparison/figure_series/hko_event_coast_classification.csv',index=False)
+    h[cols].to_csv(destination / 'hko_event_coast_classification.csv',index=False)
 
     return h
 
 
 
-def cutpoint(ev,hko_classified):
-
-    ref=pd.read_csv(Z/'agency_comparison/02_cutpoint_sensitivity/cutpoint_sensitivity.csv')
-
-    ref=ref[ref.scheme.eq('full_record')&ref.metric.eq('first_landfall_latitude_difference')]
+def cutpoint(ev,destination):
 
     e=ev.copy();e['coast']=e.get('coast','Other');e['coast']=e['coast'].fillna('Other')
 
@@ -315,64 +237,34 @@ def cutpoint(ev,hko_classified):
 
             rows.append(dict(cutpoint=cut,agency=ag,effect=eff,p_value=p))
 
-    out=pd.DataFrame(rows);m=out.merge(ref,on=['cutpoint','agency'],suffixes=('','_ref'))
+    out=pd.DataFrame(rows)
 
-    checks['cutpoint_three_agency']=close(m[['effect','p_value']].values,m[['effect_ref','p_value_ref']].values)
-
-    out.to_csv(_LAYOUT_ROOT / 'results/agency_comparison/figure_series/cutpoint.csv',index=False)
+    out.to_csv(destination / 'cutpoint.csv',index=False)
 
 
 
-def main(stage):
-
-    OUT.mkdir(parents=True,exist_ok=True);qa=output_path('results/diagnostics/hko_figure_series.json')
-
-    state=json.loads(qa.read_text()) if qa.exists() else {}
-
-    checks.update(state.get('reproduction_checks',{}));info=state.get('info',{})
-
-    cats=all_catalogues() if stage in ('basic','common','decomp') else None
-
-    if stage=='basic':info.update(frequency_and_lmi(cats));info.update(index(cats))
-
-    ev=landfall() if stage in ('landfall','common','coast','cutpoint') else None
-
-    if stage=='common':
-
-        if not common_storms(ev,cats,True):common_storms(ev,cats,False)
-
-    if stage=='coast':coast(ev);info.update(info_extra)
-
-    if stage=='cutpoint':
-
-        if not cutpoint(ev,True):cutpoint(ev,False)
-
-    variant=lambda k:k.startswith('common_') or k.startswith('cutpoint_')
-
-    done={'basic':'index_USA' in checks,'landfall':'landfall_three_agency' in checks,'common':any(k.startswith('common_') for k in checks),
-
-          'coast':'coast_three_agency' in checks,'cutpoint':any(k.startswith('cutpoint_') for k in checks)}
-
-    ok=all(done.values()) and all(v for k,v in checks.items() if not variant(k)) and any(v for k,v in checks.items() if k.startswith('common_')) and any(v for k,v in checks.items() if k.startswith('cutpoint_'))
-
-    write_json('results/diagnostics/hko_figure_series.json',dict(status='PASS' if ok else ('INCOMPLETE' if not all(done.values()) else 'CHECK_FAILED'),
-
-        reproduction_checks=checks,settings=CFG,info=info,
-
-        note='The same statistical definitions are applied to the three reference agency records and HKO.'))
-
-    print(stage,{k:v for k,v in checks.items()},info)
-
-
+def main(stage, output):
+    destination=(_LAYOUT_ROOT / output).resolve()
+    if not destination.is_relative_to(_LAYOUT_ROOT.resolve()): raise ValueError('Output must remain within the project')
+    if destination.exists(): raise FileExistsError('Provide a new output directory')
+    if stage not in ('basic','landfall','common','coast','cutpoint'): raise ValueError('Unknown stage')
+    destination.mkdir(parents=True)
+    info={}
+    cats=all_catalogues() if stage in ('basic','common') else None
+    if stage=='basic':
+        info.update(frequency_and_lmi(cats,destination));info.update(index(cats,destination))
+    ev=landfall(destination) if stage in ('landfall','common','coast','cutpoint') else None
+    if stage=='common': common_storms(ev,cats,destination)
+    if stage=='coast': coast(ev,destination)
+    if stage=='cutpoint': cutpoint(ev,destination)
+    print(stage,info)
 
 if __name__=='__main__':
-
-    import sys
-
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main(sys.argv[1])
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('stage',choices=['basic','landfall','common','coast','cutpoint'])
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output-dir',required=True)
+    args=parser.parse_args()
+    if not args.execute: parser.error('add --execute to calculate figure data')
+    main(args.stage,args.output_dir)

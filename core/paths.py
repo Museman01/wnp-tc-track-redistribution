@@ -77,3 +77,15 @@ def import_source(name: str, relative: str):
     spec.loader.exec_module(module)
 
     return module
+
+
+def create_new_output_dir(path: Path | str) -> Path:
+    """Create a new project-local output directory; refuse reuse or escape."""
+    target = Path(path).expanduser().resolve()
+    root = PROJECT_ROOT.resolve()
+    if not target.is_relative_to(root):
+        raise ValueError(f"Output directory escapes project: {target}")
+    if target.exists():
+        raise FileExistsError(f"Output directory already exists: {target}")
+    target.mkdir(parents=True)
+    return target

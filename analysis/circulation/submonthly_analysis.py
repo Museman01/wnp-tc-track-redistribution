@@ -52,7 +52,7 @@ def wind_statistics(root, output, inference=False):
 
 def regime_statistics(root, output, inference=False):
     base=root/'data/processed/submonthly_steering'
-    daily=pd.read_csv(base/'daily_regimes.csv',parse_dates=['date'],float_precision='round_trip')
+    daily=pd.read_csv(root/'results/circulation/submonthly_steering/daily_regimes.csv',parse_dates=['date'],float_precision='round_trip')
     annual=s.regime_annual(daily,4)
     fixed=[]
     for year in s.YEARS:
@@ -85,7 +85,7 @@ def regime_statistics(root, output, inference=False):
 def joint_fields(root):
     base=root/'data/processed/submonthly_steering'
     tracks=pd.read_csv(base/'domain_ts_standard.csv',float_precision='round_trip')
-    labels=pd.read_csv(base/'daily_regimes.csv',parse_dates=['date'])
+    labels=pd.read_csv(root/'results/circulation/submonthly_steering/daily_regimes.csv',parse_dates=['date'])
     labels['date']=pd.to_datetime(labels.date,utc=True)
     points=s.label_points(tracks,labels.set_index('date').regime)
     joint,_=s.path_joint(points,list(range(4)))

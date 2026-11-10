@@ -9,7 +9,6 @@ import pandas as pd
 from core.utils import load_config
 
 # geopandas/rasterio/affine 仅在构建海陆掩膜时需要，故采用惰性导入：
-# 这样纯几何函数 densify/is_land 在没有 GIS 依赖的环境下也可被导入和单元测试。
 
 # 每个元组格式为 (名称, (西界, 东界, 南界, 北界))。
 # 列表有先后顺序，因此先放面积较小、容易与其他框重叠的地区。

@@ -96,3 +96,4 @@ def annual_fields(points,years):
         rows.append((h/h.sum()).ravel())
 
     return np.asarray(rows)
+

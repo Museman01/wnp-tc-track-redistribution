@@ -168,7 +168,6 @@ def main() -> None:
     pd.DataFrame(rows).to_csv(temp_csv, index=False)
     atomic_replace(temp_csv, output_csv)
     payload = {
-        "status": "FAIL_STRUCTURAL" if structural_errors else "PASS_STRUCTURAL",
         "structural_errors": structural_errors,
         "coordinate_tolerance_degrees": coordinate_atol,
         "coordinate_differences_vs_first_year": coordinate_differences,

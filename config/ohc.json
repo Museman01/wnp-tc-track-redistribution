@@ -105,8 +105,5 @@
     "output_csv": "results/ocean/ohc300/product_seam_diagnostics.csv",
     "output_json": "results/ocean/ohc300/product_seam_audit.json",
     "bias_correction": "none"
-  },
-  "pipeline": {
-    "manifest_csv": "results/ocean/ohc300/output_manifest.csv"
   }
 }

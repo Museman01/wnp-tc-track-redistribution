@@ -5,10 +5,7 @@ from __future__ import annotations
 from core.paths import PROJECT as _LAYOUT_ROOT
 
 import argparse
-import hashlib
-import importlib.metadata
 import json
-import platform
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,8 +22,6 @@ from sklearn.metrics import adjusted_rand_score
 from sklearn.preprocessing import StandardScaler
 
 
-HERE = _LAYOUT_ROOT / 'analysis/tracks/pathway_closure.py'
-VERIFY_ROOT = _LAYOUT_ROOT
 PROJECT_ROOT = _LAYOUT_ROOT
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -57,20 +52,7 @@ class DensityCache:
     counts: np.ndarray
 
 
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def array_sha256(array: np.ndarray) -> str:
-    contiguous = np.ascontiguousarray(array)
-    return hashlib.sha256(contiguous.view(np.uint8)).hexdigest()
-
-
-def load_verify_config() -> dict:
+def load_pathway_config() -> dict:
     with (_LAYOUT_ROOT / 'config/pathways.json').open(encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -263,8 +245,8 @@ def fit_k_scan(
             paths=reference.paths,
             membership=best["membership"],
         )
-        domain = load_verify_config()["density_domain"]
-        width = load_verify_config()["density_grid_deg"]
+        domain = load_pathway_config()["density_domain"]
+        width = load_pathway_config()["density_grid_deg"]
         lon_edges = np.arange(
             domain["lon_min"], domain["lon_max"] + width, width
         )
@@ -272,17 +254,17 @@ def fit_k_scan(
             domain["lat_min"], domain["lat_max"] + width, width
         )
         years = np.arange(
-            load_verify_config()["period_early"][0],
-            load_verify_config()["period_late"][1] + 1,
+            load_pathway_config()["period_early"][0],
+            load_pathway_config()["period_late"][1] + 1,
         )
         pi, joint, _ = annual_joint_fields(
             scan_set, years, lon_edges, lat_edges
         )
         early, late = scenario_indices(
             years,
-            load_verify_config()["period_early"][0],
-            load_verify_config()["period_late"][0],
-            load_verify_config()["period_late"][1],
+            load_pathway_config()["period_early"][0],
+            load_pathway_config()["period_late"][0],
+            load_pathway_config()["period_late"][1],
         )
         decomposition = decompose(pi, joint, early, late)
         summary_rows.append(
@@ -1053,18 +1035,17 @@ def write_report(
             f"[{lf_within_ci[0]:.3f}, {lf_within_ci[2]:.3f}]°。",
             f"- 数值闭合误差：{landfall['closure_abs']:.2e}。",
             "",
-            "## 使用判断",
+            "## 解释范围",
             "",
-            "本报告是验证性分析，不自动进入论文。是否吸收应结合三机构方向、"
-            "bootstrap稳定性、首次登陆传递和第三方复算共同决定。月平均环流尚未加入，"
-            "因此不得把本结果写成动力因果归因。",
+            "结果应结合三机构结果、bootstrap稳定性和首次登陆响应解读。"
+            "月平均环流尚未纳入分析，因此不能据此作动力因果归因。",
             "",
         ]
     )
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_p0_report(
+def write_sensitivity_report(
     path: Path,
     permutation: pd.DataFrame,
     relative: pd.DataFrame,
@@ -1075,11 +1056,11 @@ def write_p0_report(
 ) -> None:
     """Write a result-bounded report using only generated CSV-level values."""
     lines = [
-        "# 路径闭环稳健性复核报告",
+        "# 路径结构与稳健性分析",
         "",
         "本报告覆盖标签置换、相对生成点分解、k=2—7扫描、"
         "1966/1982起算与移动切点，以及域边界/密度分母敏感性。"
-        "数值结果见各项对应的CSV；本分解不构成动力因果归因。",
+        "这些统计结果不能识别动力因果关系。",
         "",
         "## 1. 标签置换零分布",
         "",
@@ -1277,8 +1258,8 @@ def write_p0_report(
             "",
             f"- 相对生成点固定域的最低点覆盖率为{min_relative_coverage:.4f}；"
             "绝对坐标敏感性使用50°N扩展域与固定20点分母。",
-            "- 以上检验回答统计路径结构是否稳健，不识别海温、环流或海气耦合机制。",
-            "- 统计结果须结合合成测试、域边界敏感性和科学解释共同解读，"
+            "- 这些检验评估统计路径结构的稳健性，不能识别海温、环流或海气耦合机制。",
+            "- 统计结果须结合域边界敏感性和科学解释共同解读，"
             "不能由代数闭合或单个p值自动决定。",
             "",
         ]
@@ -1311,55 +1292,56 @@ def main() -> None:
         type=Path,
         default=None,
         help=(
-            "Diagnostic output root; defaults to the archive root. "
+            "Output root; defaults to the project root. "
             "The resolved path must remain inside the project workspace."
         ),
     )
+    parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
-    verify_cfg = load_verify_config()
+    pathway_cfg = load_pathway_config()
     project_cfg = load_config()
-    start = verify_cfg["period_early"][0]
-    end = verify_cfg["period_late"][1]
-    n_points = verify_cfg["n_path_points"]
+    start = pathway_cfg["period_early"][0]
+    end = pathway_cfg["period_late"][1]
+    n_points = pathway_cfg["n_path_points"]
     n_bootstrap = (
         args.n_bootstrap
         if args.n_bootstrap is not None
-        else verify_cfg["n_bootstrap"]
+        else pathway_cfg["n_bootstrap"]
     )
     n_permutations = (
         args.n_permutations
         if args.n_permutations is not None
-        else verify_cfg["n_label_permutations"]
+        else pathway_cfg["n_label_permutations"]
     )
     cluster_seeds = (
         args.cluster_seeds
         if args.cluster_seeds is not None
-        else verify_cfg["cluster_seeds"]
+        else pathway_cfg["cluster_seeds"]
     )
     years = np.arange(start, end + 1)
     early_index, late_index = scenario_indices(
         years,
-        verify_cfg["period_early"][0],
-        verify_cfg["period_late"][0],
-        verify_cfg["period_late"][1],
+        pathway_cfg["period_early"][0],
+        pathway_cfg["period_late"][0],
+        pathway_cfg["period_late"][1],
     )
-    if len(early_index) % verify_cfg["bootstrap_block_years"]:
+    if len(early_index) % pathway_cfg["bootstrap_block_years"]:
         raise ValueError("early period length must be divisible by block length")
-    if len(late_index) % verify_cfg["bootstrap_block_years"]:
+    if len(late_index) % pathway_cfg["bootstrap_block_years"]:
         raise ValueError("late period length must be divisible by block length")
 
     output_root = (
         args.output_root.resolve()
         if args.output_root is not None
-        else VERIFY_ROOT
+        else PROJECT_ROOT
     )
     if output_root != PROJECT_ROOT and PROJECT_ROOT not in output_root.parents:
         raise ValueError(f"output root must remain under {PROJECT_ROOT}")
     results_dir = output_root / "results/pathways"
-    qa_dir = output_root / "results/pathways/diagnostics"
+    if results_dir.exists() and any(results_dir.iterdir()) and not args.overwrite:
+        raise FileExistsError(f"Refusing to overwrite existing results: {results_dir}")
     results_dir.mkdir(parents=True, exist_ok=True)
-    qa_dir.mkdir(parents=True, exist_ok=True)
 
     processed = Path(project_cfg["paths"]["processed"])
     raw = Path(project_cfg["paths"]["raw"])
@@ -1378,16 +1360,16 @@ def main() -> None:
     reference = build_path_set(primary_points, "PRIMARY", start, end, n_points)
     scaler, centers, membership, model = fit_reference_model(
         reference,
-        verify_cfg["n_families"],
-        verify_cfg["fuzzy_m"],
+        pathway_cfg["n_families"],
+        pathway_cfg["fuzzy_m"],
         cluster_seeds,
         n_points,
     )
     reference.membership = membership
     k_scan, k_seed_diagnostics = fit_k_scan(
         reference,
-        [int(value) for value in verify_cfg["k_scan"]],
-        verify_cfg["fuzzy_m"],
+        [int(value) for value in pathway_cfg["k_scan"]],
+        pathway_cfg["fuzzy_m"],
         cluster_seeds,
     )
 
@@ -1403,17 +1385,17 @@ def main() -> None:
             n_points,
         )
         path_set.membership = predict_membership(
-            path_set, scaler, centers, verify_cfg["fuzzy_m"]
+            path_set, scaler, centers, pathway_cfg["fuzzy_m"]
         )
         path_sets.append(path_set)
 
-    domain = verify_cfg["density_domain"]
-    width = verify_cfg["density_grid_deg"]
+    domain = pathway_cfg["density_domain"]
+    width = pathway_cfg["density_grid_deg"]
     lon_edges = np.arange(domain["lon_min"], domain["lon_max"] + width, width)
     lat_edges = np.arange(domain["lat_min"], domain["lat_max"] + width, width)
     lon_centers = (lon_edges[:-1] + lon_edges[1:]) / 2.0
     lat_centers = (lat_edges[:-1] + lat_edges[1:]) / 2.0
-    relative_domain = verify_cfg["relative_genesis_domain"]
+    relative_domain = pathway_cfg["relative_genesis_domain"]
     relative_lon_edges = np.arange(
         relative_domain["lon_min"],
         relative_domain["lon_max"] + width,
@@ -1424,7 +1406,7 @@ def main() -> None:
         relative_domain["lat_max"] + width,
         width,
     )
-    family_names = verify_cfg["family_order"]
+    family_names = pathway_cfg["family_order"]
 
     summary_rows = []
     family_rows = []
@@ -1501,7 +1483,7 @@ def main() -> None:
                     path_set,
                     cache,
                     years,
-                    verify_cfg["period_scenarios"],
+                    pathway_cfg["period_scenarios"],
                 )
             )
             permutation_summary, permutation_null = label_permutation_null(
@@ -1511,7 +1493,7 @@ def main() -> None:
                 early_index,
                 late_index,
                 n_permutations,
-                verify_cfg["random_seed"]
+                pathway_cfg["random_seed"]
                 + dataset_index * 100
                 + (0 if cache.geometry == "absolute" else 1),
             )
@@ -1560,10 +1542,10 @@ def main() -> None:
             years,
             early_index,
             late_index,
-            verify_cfg["domain_denominator_sensitivity"],
+            pathway_cfg["domain_denominator_sensitivity"],
             width,
             n_permutations,
-            verify_cfg["random_seed"] + 1000 + dataset_index * 10,
+            pathway_cfg["random_seed"] + 1000 + dataset_index * 10,
         )
         domain_frames.append(domain_result)
         domain_null_frames.append(domain_null)
@@ -1572,9 +1554,9 @@ def main() -> None:
             joint,
             early_index,
             late_index,
-            verify_cfg["bootstrap_block_years"],
+            pathway_cfg["bootstrap_block_years"],
             n_bootstrap,
-            verify_cfg["random_seed"] + dataset_index,
+            pathway_cfg["random_seed"] + dataset_index,
         )
         boot.insert(0, "dataset", path_set.dataset)
         bootstrap_frames.append(boot)
@@ -1690,9 +1672,9 @@ def main() -> None:
         years,
         early_index,
         late_index,
-        verify_cfg["bootstrap_block_years"],
+        pathway_cfg["bootstrap_block_years"],
         n_bootstrap,
-        verify_cfg["random_seed"] + 100,
+        pathway_cfg["random_seed"] + 100,
     )
 
     summary.to_csv(results_dir / "pathway_summary.csv", index=False)
@@ -1762,8 +1744,8 @@ def main() -> None:
         landfall,
         landfall_boot,
     )
-    write_p0_report(
-        results_dir / "P0_ANALYSIS_REPORT.md",
+    write_sensitivity_report(
+        results_dir / "pathway_sensitivity_report.md",
         permutation_results,
         relative_summary,
         k_scan,
@@ -1772,139 +1754,19 @@ def main() -> None:
         domain_results,
     )
 
-    manifest = {
-        "analysis": verify_cfg["analysis_name"],
-        "project_root": str(PROJECT_ROOT),
-        "output_root": str(output_root),
-        "n_bootstrap": n_bootstrap,
-        "n_label_permutations": n_permutations,
-        "cluster_seeds": cluster_seeds,
-        "environment": {
-            "python": platform.python_version(),
-            "platform": platform.platform(),
-            "packages": {
-                name: importlib.metadata.version(name)
-                for name in (
-                    "numpy",
-                    "pandas",
-                    "scipy",
-                    "scikit-learn",
-                    "scikit-fuzzy",
-                )
-            },
-        },
-        "inputs": {
-            str(path.relative_to(PROJECT_ROOT)): {
-                "sha256": sha256(path),
-                "bytes": path.stat().st_size,
-            }
-            for path in (
-                tracks_path,
-                landfalls_path,
-                ibtracs_path,
-                _LAYOUT_ROOT / 'config/pathways.json',
-                HERE,
-            )
-        },
-        "model": {
-            **model["diagnostics"],
-            "physical_centers_sha256": array_sha256(model["physical"]),
-        },
-        "datasets": {
-            path_set.dataset: {
-                "n_storms": int(len(path_set.sid)),
-                "median_max_membership": float(
-                    np.median(path_set.membership.max(axis=0))
-                ),
-            }
-            for path_set in path_sets
-        },
-        "implementation_invariants": {
-            "membership_sum": True,
-            "max_absolute_path_closure_error": float(
-                max(
-                    summary["closure_max_abs"].max(),
-                    relative_summary["closure_max_abs"].max(),
-                    period_results["closure_max_abs"].max(),
-                    k_scan["closure_max_abs"].max(),
-                    sensitivity["closure_max_abs"].max(),
-                    domain_results["closure_max_abs"].max(),
-                )
-            ),
-            "max_landfall_closure_error": float(landfall["closure_abs"]),
-            "all_outputs_finite": bool(
-                np.isfinite(
-                    permutation_results.select_dtypes(include=[np.number])
-                ).all().all()
-                and np.isfinite(
-                    relative_summary.select_dtypes(include=[np.number])
-                ).all().all()
-                and np.isfinite(
-                    period_results.select_dtypes(include=[np.number])
-                ).all().all()
-                and np.isfinite(
-                    k_scan.select_dtypes(include=[np.number])
-                ).all().all()
-                and np.isfinite(
-                    domain_results.select_dtypes(include=[np.number])
-                ).all().all()
-            ),
-        },
-        "scientific_decision": {
-            "automatic_gate": False,
-            "reason": (
-                "Pathway statistics and structural sensitivities require joint "
-                "scientific interpretation."
-            ),
-        },
-    }
-    (qa_dir / "run_manifest.json").write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+    max_closure_error = max(
+        summary["closure_max_abs"].max(),
+        relative_summary["closure_max_abs"].max(),
+        period_results["closure_max_abs"].max(),
+        k_scan["closure_max_abs"].max(),
+        sensitivity["closure_max_abs"].max(),
+        domain_results["closure_max_abs"].max(),
     )
-    gate_pass = (
-        manifest["implementation_invariants"][
-            "max_absolute_path_closure_error"
-        ]
-        < 1e-10
-        and landfall["closure_abs"] < 1e-10
-        and manifest["implementation_invariants"]["all_outputs_finite"]
+    finite = all(
+        np.isfinite(frame.select_dtypes(include=[np.number])).all().all()
+        for frame in (permutation_results, relative_summary, period_results, k_scan, domain_results)
     )
-    p0_files = [
-        "between_share_permutation_summary.csv",
-        "between_share_permutation_null.csv",
-        "relative_genesis_summary.csv",
-        "k_scan_summary.csv",
-        "k_seed_diagnostics.csv",
-        "start_cutpoint_sensitivity.csv",
-        "density_domain_coverage.csv",
-        "domain_denominator_sensitivity.csv",
-        "domain_denominator_permutation_null.csv",
-        "P0_ANALYSIS_REPORT.md",
-    ]
-    (qa_dir / "VALIDATION_REPORT.md").write_text(
-        "\n".join(
-            [
-                "# 验证报告",
-                "",
-                f"- 最大路径场闭合误差："
-                f"{manifest['implementation_invariants']['max_absolute_path_closure_error']:.3e}。",
-                f"- 登陆纬度闭合误差：{landfall['closure_abs']:.3e}。",
-                f"- bootstrap 次数：{n_bootstrap}，分块长度："
-                f"{verify_cfg['bootstrap_block_years']} 年。",
-                f"- 标签置换次数：{n_permutations}；"
-                "置换限制在同一年内，逐年类型比例不变。",
-                f"- k扫描：{min(verify_cfg['k_scan'])}—"
-                f"{max(verify_cfg['k_scan'])}，每个k使用{cluster_seeds}个种子。",
-                f"- 域/分母敏感性：{len(domain_results)}个资料—口径组合，"
-                "均使用同一条件标签置换。",
-                "- 统计路径闭环及其敏感性"
-                "不构成动力因果归因。",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    if not gate_pass:
+    if not (max_closure_error < 1e-10 and landfall["closure_abs"] < 1e-10 and finite):
         raise AssertionError("exact decomposition gate failed")
     print(
         f"pathway closure complete: {len(path_sets)} datasets, "

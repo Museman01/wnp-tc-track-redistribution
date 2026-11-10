@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
-import sys,shutil
+import sys
 
 import numpy as np,pandas as pd
 
@@ -21,9 +21,7 @@ from matplotlib.text import Text
 
 from matplotlib.ticker import FuncFormatter
 
-from matplotlib.patches import FancyBboxPatch
 
-from matplotlib.colors import TwoSlopeNorm
 
 from core.paths import PROJECT,output_path
 
@@ -52,12 +50,13 @@ Z=_LAYOUT_ROOT / 'data/reference'
 ZA=_LAYOUT_ROOT / 'data/reference/agency_comparison';ZV=_LAYOUT_ROOT / 'data/reference/environment_validation'
 
 H=lambda n:pd.read_csv(output_path('results/agency_comparison/figure_series/'+n))
+FIGURE_DIR=PROJECT/'figures'
 
 
 
 def scale_typography(fig,scale):
 
-    """Scale visible figure text using the available Arial-compatible font."""
+    """As figure_typography.scale_figure_typography, with the available Arial-compatible font."""
 
     fig.canvas.draw()
 
@@ -72,14 +71,12 @@ def scale_typography(fig,scale):
 
 
 def save(fig,stem,*,scale,dpi,number,title):
-
+    png=FIGURE_DIR/f'{stem}.png';pdf=FIGURE_DIR/f'{stem}.pdf'
+    if png.exists() or pdf.exists():raise FileExistsError(f'Refusing to overwrite existing figure: {stem}')
     scale_typography(fig,scale)
-
     meta={'Title':title,'Subject':f'Journal of Geophysical Research: Atmospheres Figure {number}','Creator':'Matplotlib'}
-
-    fig.savefig(output_path(f'figures/{stem}.png'),dpi=dpi,bbox_inches='tight')
-
-    fig.savefig(output_path(f'figures/{stem}.pdf'),bbox_inches='tight',metadata=meta);plt.close(fig);print('Figure',stem,flush=True)
+    fig.savefig(output_path(str(png)),dpi=dpi,bbox_inches='tight')
+    fig.savefig(output_path(str(pdf)),bbox_inches='tight',metadata=meta);plt.close(fig);print('Figure',stem,flush=True)
 
 
 
@@ -193,7 +190,7 @@ def figure2():
 
     # Panel b: storms common to all four records (1,465 storms).
 
-    l4=pd.read_csv(output_path('results/agency_comparison/lmi_common_four_agency_annual.csv'))
+    l4=pd.read_csv(output_path('results/agency_comparison/core/lmi_common_four_agency_annual.csv'))
 
     for agency in AG4:
 
@@ -403,7 +400,7 @@ def figure6():
 
     direct=pd.concat([direct[['agency','definition','eff','lo','hi']],hd[['agency','definition','eff','lo','hi']]])
 
-    common=pd.read_csv(output_path('results/agency_comparison/common_storm_landfall_four_agency.csv'))  # 1,465 storms common to all four records
+    common=pd.read_csv(output_path('results/agency_comparison/common/common_storm_landfall_four_agency.csv'))  # 1,465 storms common to all four records
 
     cut=pd.read_csv(ZA/'02_cutpoint_sensitivity/cutpoint_sensitivity.csv')
 
@@ -503,9 +500,7 @@ def figure7():
 
 def figure5():
 
-    """scripts/39 fig5 with two readability additions: a 0.5 m s-1 reference vector and the
-
-    names 'Raw' and 'Detrended' next to the panel letters. Data: circulation fields and regression results."""
+    """Draw circulation fields and regression results with a 0.5 m s-1 reference vector."""
 
     fields=np.load(ZV/'circulation_metric_validation/results/wnp_tc_circulation_fields.npz')
 
@@ -588,7 +583,11 @@ if __name__=='__main__':
         raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
 
     sys.argv.remove('--execute')
-
+    if '--output-dir' in sys.argv:
+        index=sys.argv.index('--output-dir')
+        FIGURE_DIR=(PROJECT/sys.argv[index+1]).resolve()
+        if not FIGURE_DIR.is_relative_to(PROJECT.resolve()):raise ValueError('Output directory must remain within the project')
+        del sys.argv[index:index+2]
     selected = sys.argv[1:] or ['2','3','4','5','6']
     if '7' in selected:
         raise SystemExit('Figure 7 uses analysis.figures.synthesis_figure; this entry is unavailable.')

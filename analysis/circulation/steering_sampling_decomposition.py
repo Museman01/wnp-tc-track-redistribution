@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
+from pathlib import Path
 import numpy as np
 
 import pandas as pd
 
 import netCDF4 as nc
 
-from core.paths import PROJECT,output_path,write_json
+from core.paths import PROJECT,output_path
 
 from analysis.shared.agency_catalogues import all_catalogues
 
@@ -94,9 +95,12 @@ def values(C,weights1,weights2):
 
 
 
-def main():
-
-    rows=[];checks=[];cats=all_catalogues()
+def main(output=None):
+    target=(PROJECT / (output or 'results/circulation/steering_sampling_layers.csv')).resolve()
+    if not target.is_relative_to(PROJECT.resolve()):raise ValueError('Output must remain within the project')
+    if target.exists():raise FileExistsError(target)
+    target.parent.mkdir(parents=True,exist_ok=True)
+    rows=[];cats=all_catalogues()
 
     rng=np.random.default_rng(202406);blocks=np.arange(60).reshape(20,3)
 
@@ -116,7 +120,7 @@ def main():
 
         if cache.exists():U=dict(np.load(cache))
 
-        else:U=coarsen_file(path);np.savez(cache,**U)
+        else:U=coarsen_file(path)
 
         for agency in ['USA','TOKYO','CMA']:
 
@@ -138,8 +142,6 @@ def main():
 
                 if residual>1e-10:raise AssertionError(residual)
 
-                checks.append({'layer':layer,'agency':agency,'component':c,'maxabs_additivity':residual})
-
                 for name,v in {**a,'fixed_field':f['field'],'fixed_seasonal':f['sampling'],'fixed_cosampling':f['cosampling']}.items():
 
                     p=(int((abs(v[1:])>=abs(v[0])).sum())+1)/10000
@@ -150,28 +152,14 @@ def main():
 
             print('Steering sampling',layer,agency,'complete',flush=True)
 
-    pd.DataFrame(rows).to_csv(_LAYOUT_ROOT / 'results/circulation/steering_sampling_layers.csv',index=False)
-
-    write_json('results/diagnostics/steering_sampling_layers.json',{'status':'PASS','closure_checks':checks,
-
-        'null':'9999 ordered-three-year block permutations, 30/30 split; paired annual field and occupancy labels',
-
-        'fixed_space':'pooled monthly spatial distribution, invariant to equal-size period relabelling',
-
-        'meaning':'sampling includes the explained track-position change; not a causal mechanism',
-
-        'design':'exploratory layer sensitivity, not prespecified'})
-
-
+    pd.DataFrame(rows).to_csv(target,index=False)
 
 if __name__=='__main__':
 
-    import sys
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true');parser.add_argument('--output',type=Path)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to calculate steering sampling')
+    main(args.output)
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main()

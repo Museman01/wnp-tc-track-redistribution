@@ -4,11 +4,17 @@
 直接读取 track_metrics 的转向时空点。
 """
 import pandas as pd, numpy as np
+from pathlib import Path
 from core.utils import load_config
 
 
 def main():
     cfg = load_config()
+    output = Path(cfg["paths"]["processed"]) / "recurvature"
+    targets = ['recurvature_density.npz', 'recurvature_monthly.csv', 'recurvature_annual.csv']
+    if any((output / name).exists() for name in targets):
+        raise FileExistsError(f"Refusing to overwrite existing analysis outputs: {output}")
+    output.mkdir(parents=True, exist_ok=True)
     r = cfg["regions"]["tc"]
     b = cfg["grids"]["density_bin"]
     tr = pd.read_csv(f"{cfg['paths']['processed']}/tracks.csv", parse_dates=["iso_time"])
@@ -21,7 +27,7 @@ def main():
     # 条件表达式保证没有转向事件时仍输出形状正确的全零数组。
     H = (np.histogram2d(pts[:, 0], pts[:, 1], bins=[glon, glat])[0].T
          if len(pts) else np.zeros((len(glat) - 1, len(glon) - 1)))
-    np.savez(f"{cfg['paths']['processed']}/recurvature_density.npz", lon=glon, lat=glat, dens=H)
+    np.savez(output / "recurvature_density.npz", lon=glon, lat=glat, dens=H)
 
     s = pd.read_csv(f"{cfg['paths']['processed']}/storms.csv", parse_dates=["genesis_time"]) \
         .merge(m[["sid", "recurving"]], on="sid", how="left")
@@ -34,10 +40,10 @@ def main():
         .rename("events_per_year")], axis=1).reindex(range(1, 13))
     # 某月没有任何转向事件时，事件频率应为 0，而不是缺失值。
     monthly["events_per_year"] = monthly["events_per_year"].fillna(0.0)
-    monthly.to_csv(f"{cfg['paths']['processed']}/recurvature_monthly.csv", index_label="month")
+    monthly.to_csv(output / "recurvature_monthly.csv", index_label="month")
     # 0/1 变量的年度平均值就是该年气旋转向比例。
     s.groupby("season")["recurving"].mean().to_csv(
-        f"{cfg['paths']['processed']}/recurvature_annual.csv")
+        output / "recurvature_annual.csv")
     print(f"recurvature outputs: {len(rec)} recurving events, nyr={nyr}")
 
 

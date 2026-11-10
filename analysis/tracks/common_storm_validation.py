@@ -168,11 +168,14 @@ def summarize_period_change(annual, years, cfg):
 
 
 
-def run():
+def run(output_dir, events_path=None):
+
+    from pathlib import Path
+    from core.paths import create_new_output_dir
 
     cfg = load_config()
 
-    out = _LAYOUT_ROOT / 'results/tracks' / "03_common_storms"
+    out = create_new_output_dir(output_dir)
 
     years = np.arange(1966, 2026)
 
@@ -256,7 +259,8 @@ def run():
 
 
 
-    events = pd.read_csv(_LAYOUT_ROOT / 'results/tracks' / "01_landfall_latitude" / "landfall_events_exact.csv")
+    events_path = Path(events_path) if events_path else PROJECT / "results" / "landfall" / "landfall_events_exact.csv"
+    events = pd.read_csv(events_path)
 
     annual = annual_landfall_metrics(events, years, common)
 
@@ -302,12 +306,15 @@ def run():
 
 if __name__ == "__main__":
 
-    import sys
+    import argparse
+    from pathlib import Path
 
-    if '--execute' not in sys.argv:
+    parser = argparse.ArgumentParser(description="Recompute common-storm validation outputs.")
+    parser.add_argument("--execute", action="store_true", help="confirm execution")
+    parser.add_argument("--output-dir", required=True, help="new project-local output directory")
+    parser.add_argument("--events", type=Path, help="exact landfall events CSV")
+    args = parser.parse_args()
+    if not args.execute:
+        parser.error("add --execute to write outputs")
+    run(args.output_dir, args.events)
 
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    run()

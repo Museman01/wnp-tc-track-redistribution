@@ -48,7 +48,8 @@ and four regimes; labels are ordered by the first-PC cluster-centroid coordinate
 Persistence is the mean run length within each June–October season, with runs
 censored at the season boundaries. Frequency and persistence comparisons give
 each year equal weight. Path compositions use annual-normalized June–October
-points on the 2.5° 0–40°N, 100–180°E grid and match the daily regime labels.
+points on the 2.5° 0–40°N, 100–180°E grid and match the daily regime labels in
+`results/circulation/submonthly_steering/daily_regimes.csv`.
 
 The symmetric decomposition separates changes in regime frequency from changes
 in conditional path composition within regimes. Projection percentages use the

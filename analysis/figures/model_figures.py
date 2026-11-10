@@ -1,16 +1,15 @@
 """绘制反事实试验结果对照图。
 
 面板 (a)–(e) 为相对路径密度差异场（后期减前期，×1000）。
-面板 (f) 为两期引导流气候态差异本身，是主判据不通过的直接原因。
+面板 (f) 为两期引导流气候态差异。
 
-图件使用无衬线字体和英文标注。
+图件字体遵循项目规范使用无衬线字体；标注用英文以避免缺字。
 """
 
 from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
-from pathlib import Path
 
 import matplotlib as mpl
 
@@ -29,9 +28,7 @@ ROOT = _LAYOUT_ROOT
 
 def steering_diff():
     """主季（6–10月）两期引导流气候态差异与月际标准差。"""
-    src = Path("/tmp/steering.nc")
-    if not src.is_file():
-        src = ROOT / "data" / "interim" / "steering.nc"
+    src = ROOT / "data" / "interim" / "steering.nc"
     ds = Dataset(src)
     lat = np.asarray(ds.variables["latitude"][:])
     lon = np.asarray(ds.variables["longitude"][:])
@@ -51,7 +48,10 @@ def steering_diff():
     return lat, lon, du, dv, sd
 
 
-def main() -> None:
+def main(overwrite=False) -> None:
+    out = _LAYOUT_ROOT / 'figures/counterfactual_fields.png'
+    if out.exists() and not overwrite:
+        raise FileExistsError(f'Refusing to overwrite existing figure: {out}')
     z = np.load(_LAYOUT_ROOT / 'results/models/counterfactual/fields.npz')
     lon_e, lat_e = z["lon_edges"], z["lat_edges"]
     ext = [lon_e[0], lon_e[-1], lat_e[0], lat_e[-1]]
@@ -79,7 +79,7 @@ def main() -> None:
     cb.set_label("Relative track-density difference (×10$^{-3}$)", fontsize=8)
     cb.ax.tick_params(labelsize=7.5)
 
-    # (f) 引导流气候态差异：主判据不通过的直接原因
+    # (f) 引导流气候态差异
     ax = axes.ravel()[5]
     lat, lon, du, dv, sd = steering_diff()
     my = (lat >= 0) & (lat <= 40)
@@ -100,11 +100,11 @@ def main() -> None:
     ax.text(0.5, -0.28, f"basin mean = {np.nanmean(ratio):.2f}σ",
             transform=ax.transAxes, ha="center", fontsize=8.5)
 
-    out = _LAYOUT_ROOT / 'figures/counterfactual_fields.png'
     fig.savefig(out, dpi=200, bbox_inches="tight")
     print(f"saved {out}")
     print(f"  (f) 面板全域均值 = {np.nanmean(ratio):.3f}σ, 最大 = {np.nanmax(ratio):.3f}σ")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(overwrite='--overwrite' in sys.argv)

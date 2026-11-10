@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
+from pathlib import Path
 import numpy as np
 
 import pandas as pd
@@ -12,14 +13,17 @@ import statsmodels.api as sm
 
 from scipy.signal import detrend
 
-from core.paths import PROJECT,output_path,write_json
+from core.paths import PROJECT,output_path
 
 from analysis.shared.inference_stats import bh_fdr
 
 
 
-def main():
-
+def main(output=None):
+    target=(PROJECT / (output or 'results/circulation/steering_hac_layer_models.csv')).resolve()
+    if not target.is_relative_to(PROJECT.resolve()):raise ValueError('Output must remain within the project')
+    if target.exists():raise FileExistsError(target)
+    target.parent.mkdir(parents=True,exist_ok=True)
     d=pd.read_csv(_LAYOUT_ROOT / 'results/circulation/steering_corridor_annual.csv')
 
     oni=pd.read_csv(PROJECT/'data/raw/indices/oni.csv').rename(columns={'season':'year'})
@@ -70,26 +74,14 @@ def main():
 
         result.loc[idx,'q_bh_within_layer_timescale']=bh_fdr(result.loc[idx,'p_hac'])
 
-    result.to_csv(_LAYOUT_ROOT / 'results/circulation/steering_hac_layer_models.csv',index=False)
-
-    write_json('results/diagnostics/steering_hac.json',{'status':'PASS','models':models,'HAC_lags':3,'standardization':'sample SD; repeated after detrending',
-
-        'FDR_family':'all nonintercept coefficients within layer and timescale, preserving the original model family',
-
-        'layer_scope':'only u/v corridor indices change; ONI, PDO, regional adjusted height and index remain fixed'})
-
-    print('Layer-specific HAC regressions saved.')
-
-
+    result.to_csv(target,index=False)
 
 if __name__=='__main__':
 
-    import sys
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true');parser.add_argument('--output',type=Path)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to calculate steering regressions')
+    main(args.output)
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main()

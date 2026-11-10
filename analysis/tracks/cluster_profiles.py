@@ -6,6 +6,7 @@ cluster_phase_rate.csv。
 归一的频率；经度在求均值前展开。重采样与经度处理与聚类模块一致。
 """
 import pandas as pd, numpy as np
+from pathlib import Path
 from core.utils import load_config
 
 N = 20
@@ -22,7 +23,12 @@ def resample(g):
 
 def main():
     cfg = load_config()
-    cl = pd.read_csv(f"{cfg['paths']['processed']}/track_clusters.csv")
+    output = Path(cfg["paths"]["processed"]) / "cluster_profiles"
+    targets = ['cluster_mean_tracks.npz', 'cluster_monthly.csv', 'cluster_phase.csv', 'cluster_phase_rate.csv']
+    if any((output / name).exists() for name in targets):
+        raise FileExistsError(f"Refusing to overwrite existing cluster profile outputs: {output}")
+    output.mkdir(parents=True, exist_ok=True)
+    cl = pd.read_csv(f"{cfg['paths']['processed']}/clustering/track_clusters.csv")
     tr = pd.read_csv(f"{cfg['paths']['processed']}/tracks.csv", parse_dates=["iso_time"])
     s = pd.read_csv(f"{cfg['paths']['processed']}/storms.csv", parse_dates=["genesis_time"])
     oni = pd.read_csv(f"{cfg['paths']['raw']}/indices/oni.csv")
@@ -50,18 +56,18 @@ def main():
             # np.average 的 weights 参数让高隶属度成员对代表路径贡献更大。
             means[f"c{j}_lon"] = np.average(lons, axis=0, weights=weights) % 360
             means[f"c{j}_lat"] = np.average(lats, axis=0, weights=weights)
-    np.savez(f"{cfg['paths']['processed']}/cluster_mean_tracks.npz", **means)
+    np.savez(output / "cluster_mean_tracks.npz", **means)
     # 对每月各簇隶属度求和，再除以该月总和，得到构成比例。
     monthly = s.groupby("month")[mcols].sum()
     monthly = monthly.div(monthly.sum(axis=1), axis=0)
-    monthly.to_csv(f"{cfg['paths']['processed']}/cluster_monthly.csv")
+    monthly.to_csv(output / "cluster_monthly.csv")
     phase = s.groupby("phase")[mcols].sum()
     # 除以每个位相的年份数，避免 El Niño/La Niña 样本年数不同导致总量不可比。
     ny = oni.groupby("phase").size()
     rate = phase.div(ny, axis=0)
-    rate.to_csv(f"{cfg['paths']['processed']}/cluster_phase_rate.csv")
+    rate.to_csv(output / "cluster_phase_rate.csv")
     phase.div(phase.sum(axis=1), axis=0).to_csv(
-        f"{cfg['paths']['processed']}/cluster_phase.csv")
+        output / "cluster_phase.csv")
     print(f"cluster profiles: {len(mcols)} clusters profiled")
 
 

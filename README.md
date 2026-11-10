@@ -10,7 +10,7 @@ Agency (JMA), China Meteorological Administration (CMA), and Hong Kong Observato
 (HKO) records, separates genesis-distribution and conditional-track-field
 contributions, and evaluates circulation, translation speed and upper-ocean
 exposure along the tracks. Relative track changes are examined alongside absolute
-passage, recurvature and landfall counts.
+passage, recurvature and landfall counts. Storm-matched six-hourly ERA5 winds and daily steering regimes further examine the circulation associated with the track contrast.
 
 ## Study scope
 
@@ -30,7 +30,7 @@ passage, recurvature and landfall counts.
 | --- | --- |
 | Cross-agency track fields, annual redistribution indices, common storms and sensitivities | `analysis/tracks/agency_comparison.py` |
 | Genesis-distribution and conditional-track-field decomposition | `analysis/tracks/genesis_conditioned_decomposition.py`, `analysis/tracks/genesis_shapley.py` |
-| Absolute passage, sustained recurvature and operational genesis | `analysis/tracks/track_baseline_diagnostics.py` |
+| Absolute passage, sustained recurvature and operational genesis | `analysis/tracks/track_exposure_diagnostics.py` |
 | Landfall latitude, named-coast grouping and counting-rule sensitivities | `analysis/tracks/agency_comparison.py`, `analysis/landfall/hko_landfalls.py` |
 | Circulation associations, deep/shallow steering and storm-sampling decomposition | `analysis/circulation/steering_layer_diagnostics.py`, `analysis/circulation/steering_sampling_decomposition.py`, `analysis/circulation/storm_time_sampling.py` |
 | Trajectory-model calibration, baseline evaluation and finite sensitivities | `analysis/models/bam_primary_fit.py`, `analysis/models/bam_sensitivity.py` |
@@ -42,19 +42,17 @@ passage, recurvature and landfall counts.
 | Six-hourly storm-centre trajectory baselines | `analysis/models/six_hourly_trajectory.py` |
 | Main and supplementary figures | `analysis/figures/main_figures.py`, `analysis/figures/si_four_agency_figures.py`, `analysis/figures/diagnostic_figures.py` |
 
-Version 1.3.1 includes the four-agency comparison, absolute-count diagnostics,
-trajectory-model and steering-layer sensitivities, the parallel D26 analysis, storm-matched six-hourly steering, daily circulation regimes, and count-based Table S7 reporting.
 Statistical decompositions quantify contributions to observed differences;
 circulation associations and model sensitivities are interpreted within their
 respective observational and model assumptions.
 
 ## Code and data
 
-The source code is organized by scientific topic, with shared utilities and
-numerical tests. The accompanying [science archive](https://doi.org/10.5281/zenodo.24054172)
-supplies the same source code,
-scientific configurations, observations and regional input subsets, numerical
-results, and seven main and twenty-one supplementary figures.
+The source code is organized by scientific topic, with shared utilities.
+Scientific configurations, observations and regional input subsets, numerical
+results, and seven main and twenty-one supplementary figures accompany the code.
+Software and data version **1.3.2** is available in the
+[science archive](https://doi.org/10.5281/zenodo.24097292).
 
 | Location | Contents |
 | --- | --- |
@@ -65,7 +63,6 @@ results, and seven main and twenty-one supplementary figures.
 | `analysis/models/` | Trajectory-model calibration and sensitivity |
 | `analysis/figures/` | Main and supplementary plotting |
 | `analysis/shared/`, `core/` | Catalogue readers, statistics and shared utilities |
-| `validation/tests/` | Numerical tests |
 | `config/` | Scientific parameters |
 | `data/` | Observations, processed tracks and regional fields; OHC300/D26 are in `data/derived/` |
 | `results/` | All numerical outputs, grouped by scientific topic |
@@ -82,15 +79,15 @@ are included in the science archive.
 
 ## Basic use
 
-Use **Python 3.12**. Extract the science archive and run commands from its root;
-it already contains the same Python sources as the source-only ZIP. Install the
+Use **Python 3.12**. Place the code, configurations and scientific inputs in the
+paths shown below, and run commands from their common root. Install the
 dependencies listed in [requirements.txt](requirements.txt):
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-The main settings are in `config/config.yaml`. Agency resampling settings are in
+The main settings are in `config/config.yaml`. Agency resampling and exact-landfall settings are in
 `config/agency_validation.yaml`; the ocean-exposure and pathway modules have
 their own configuration files. Analysis-specific seeds and resampling counts in the
 source also form part of the analysis specification.
@@ -98,30 +95,25 @@ source also form part of the analysis specification.
 Use `python -m analysis --help` to list the analysis entry points.
 All numerical outputs are organized under `results/`: `tracks/`, `agency_comparison/`,
 `genesis/`, `landfall/`, `circulation/`, `models/`, `ocean/` and `pathways/`.
-Diagnostic summaries are written to `results/diagnostics/`; pathway checks use
-`results/pathways/diagnostics/`.
+Diagnostic summaries are written to `results/diagnostics/`.
 
 Examples using the distributed inputs:
 
 ```bash
 # Cross-agency core statistics
-python -B -m analysis tracks --execute core
+python -B -m analysis tracks --execute core --output-root analysis_output/agency
 
 # Landfall statistics from the included geometric crossing events
-python -B -m analysis landfall --execute
+python -B -m analysis landfall --execute --output-root analysis_output/agency
 
 # Main Figures 2 and 6
-python -B -m analysis figures --execute 2 6
+python -B -m analysis figures --execute 2 6 --output-dir analysis_output/figures
 
-# Match tracks to the included regional OHC fields
-python -B -m analysis ocean --phase prepare --use-prepared-ocean --execute --overwrite
-
-# OHC decomposition and block-bootstrap intervals
-python -B -m analysis ocean --phase analyze --execute --overwrite
+# Summarize the included OHC decomposition results
+python -B -m analysis.ocean.ohc_summary --execute --output-dir analysis_output/ohc_summary
 ```
 
-These commands write tables or figures. Use a separate extraction to retain the
-distributed results. See [docs/RUNNING.md](docs/RUNNING.md) for parameter locations and
+These commands write new tables or figures without replacing the distributed results. See [docs/RUNNING.md](docs/RUNNING.md) for the pre-landfall reference-table limitation, parameter locations and
 input requirements. [requirements-download.txt](requirements-download.txt) lists
 optional acquisition dependencies; Copernicus access requires a CDS account and
 acceptance of the dataset terms.
@@ -142,10 +134,10 @@ shorelines and relief-map inputs.
 ## Citation and licence
 
 Please cite the software using [CITATION.cff](CITATION.cff), and cite the original
-data products used in your analysis.
+data products used in your analysis. Version 1.3.2 may be cited as follows:
 
-Huang, D., & Yue, Y. (2026). *Analysis code and data for “Life-Cycle Redistribution of Western North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude: Cross-Agency Evidence From 1966–2025”* (Version 1.3.1) [Software and data]. Zenodo.
-[doi:10.5281/zenodo.24054172](https://doi.org/10.5281/zenodo.24054172).
+Huang, D., & Yue, Y. (2026). *Analysis code and data for “Life-Cycle Redistribution of Western North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude: Cross-Agency Evidence From 1966–2025”* (Version 1.3.2) [Software and data]. Zenodo.
+[doi:10.5281/zenodo.24097292](https://doi.org/10.5281/zenodo.24097292).
 [Source repository](https://github.com/Museman01/wnp-tc-track-redistribution).
 
 Software is released under the [MIT License](LICENSE). Project-generated
@@ -180,7 +172,7 @@ python -B -m analysis.circulation.sampling_sensitivity --report-s7 --execute --o
 ```
 
 `data/processed/submonthly_steering/` supplies matched wind vectors, standard
-track points, daily regime labels, the circulation model and daily 2.5° winds.
+track points, the circulation model and daily 2.5° winds. Daily regime labels are in `results/circulation/submonthly_steering/daily_regimes.csv`.
 `results/circulation/submonthly_steering/` contains statistical comparisons and
 table data; `data/figure_inputs/submonthly_steering/` contains the plotting arrays.
 The code ZIP contains Python sources; dependencies, scientific configurations and
@@ -213,13 +205,13 @@ From the science archive root, use new output locations:
 python -B -m analysis hko-robustness . output_hko
 python -B -m analysis regime-logistic --root . --output output_logistic --make-anchors --inference
 python -B -m analysis regime-association results/circulation/submonthly_steering/storm_anchors_and_recurvature.csv regime_association.json
-python -B -m analysis regime-persistence results/circulation/submonthly_steering/storm_anchors_and_recurvature.csv data/processed/submonthly_steering/daily_regimes.csv regime_persistence.json
+python -B -m analysis regime-persistence results/circulation/submonthly_steering/storm_anchors_and_recurvature.csv results/circulation/submonthly_steering/daily_regimes.csv regime_persistence.json
 python -B -m analysis height-gradient data/derived/circulation_monthly_coarse.npz height_gradient.json
 ```
 
 The storm-anchor table, logistic summary, two association JSON files and height
-summary are under `results/circulation/`; the daily labels remain under
-`data/processed/submonthly_steering/`. These calculations use included inputs.
+summary are under `results/circulation/`; the daily labels are under
+`results/circulation/submonthly_steering/`. These calculations use included inputs.
 [docs/ADDITIONAL_DIAGNOSTICS.md](docs/ADDITIONAL_DIAGNOSTICS.md) describes their
 sample definitions, resampling and output columns.
 

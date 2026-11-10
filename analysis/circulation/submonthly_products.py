@@ -20,7 +20,7 @@ def products(root, output, refit=False):
     with np.load(base/'circulation_model.npz') as model:latitude=model['latitude'];longitude=model['longitude']
     fields=np.stack([np.load(base/f'daily_winds/{year}.npz')['field'] for year in s.YEARS])
     anomalies=(fields-fields.mean(0)).reshape(9180,2,18,32)
-    labels=pd.read_csv(base/'daily_regimes.csv',parse_dates=['date'])
+    labels=pd.read_csv(results/'daily_regimes.csv',parse_dates=['date'])
     composites=np.stack([anomalies[labels.regime.values==k].mean(0) for k in range(4)])
     annual=pd.read_csv(base/'annual_regimes.csv',float_precision='round_trip')
     primary=regime[regime.window_start==1966].set_index('metric')

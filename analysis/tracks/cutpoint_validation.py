@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.paths import PROJECT as _LAYOUT_ROOT
+from core.paths import PROJECT, PROJECT as _LAYOUT_ROOT
 
 
 
@@ -112,21 +112,27 @@ def landfall_annual(events, years):
 
 
 
-def run():
+def run(output_dir, composition_path=None, core_annual_path=None, events_path=None, plot=False):
+
+    from pathlib import Path
+    from core.paths import create_new_output_dir
 
     cfg = load_config()
 
-    out = _LAYOUT_ROOT / 'results/tracks' / "02_cutpoint_sensitivity"
+    out = create_new_output_dir(output_dir)
 
-    out.mkdir(parents=True, exist_ok=True)
+    reference = PROJECT / "data" / "reference" / "agency_comparison" / "03_common_storms"
+    composition_path = Path(composition_path) if composition_path else reference / "annual_path_composition_2p5deg.npz"
+    core_annual_path = Path(core_annual_path) if core_annual_path else reference / "core_crossagency_annual.csv"
+    events_path = Path(events_path) if events_path else PROJECT / "results" / "landfall" / "landfall_events_exact.csv"
 
-    z = np.load(_LAYOUT_ROOT / 'results/tracks' / "03_common_storms" / "annual_path_composition_2p5deg.npz")
+    z = np.load(composition_path)
 
     years = z["years"].astype(int)
 
-    core = pd.read_csv(_LAYOUT_ROOT / 'results/tracks' / "03_common_storms" / "core_crossagency_annual.csv")
+    core = pd.read_csv(core_annual_path)
 
-    events = pd.read_csv(_LAYOUT_ROOT / 'results/tracks' / "01_landfall_latitude" / "landfall_events_exact.csv")
+    events = pd.read_csv(events_path)
 
     landing = landfall_annual(events, years)
 
@@ -210,65 +216,66 @@ def run():
 
 
 
-    metrics = ["path_total_variation", "first_landfall_latitude_difference",
+    if plot:
+        metrics = ["path_total_variation", "first_landfall_latitude_difference",
 
-               "north_share_difference", "lmi_latitude_difference"]
+                   "north_share_difference", "lmi_latitude_difference"]
 
-    labels = ["Path TVD", "First-landfall latitude (°)", "North-share change", "LMI latitude (°)"]
+        labels = ["Path TVD", "First-landfall latitude (°)", "North-share change", "LMI latitude (°)"]
 
-    colors = {"USA": "#4C72B0", "TOKYO": "#7E9CC4", "CMA": "#C76D6D"}
+        colors = {"USA": "#4C72B0", "TOKYO": "#7E9CC4", "CMA": "#C76D6D"}
 
-    fig, axes = plt.subplots(2, 4, figsize=(15.5, 7.2), sharex=True, constrained_layout=True)
+        fig, axes = plt.subplots(2, 4, figsize=(15.5, 7.2), sharex=True, constrained_layout=True)
 
-    show = table.loc[table["scheme"].eq("full_record")]
+        show = table.loc[table["scheme"].eq("full_record")]
 
-    for j, (metric, label) in enumerate(zip(metrics, labels)):
+        for j, (metric, label) in enumerate(zip(metrics, labels)):
 
-        for agency, color in colors.items():
+            for agency, color in colors.items():
 
-            part = show.loc[show["metric"].eq(metric) & show["agency"].eq(agency)]
+                part = show.loc[show["metric"].eq(metric) & show["agency"].eq(agency)]
 
-            axes[0, j].plot(part["cutpoint"], part["effect"], marker="o", ms=3, color=color,
+                axes[0, j].plot(part["cutpoint"], part["effect"], marker="o", ms=3, color=color,
 
-                            label="JMA" if agency == "TOKYO" else agency)
+                                label="JMA" if agency == "TOKYO" else agency)
 
-            axes[1, j].plot(part["cutpoint"], part["p_value"], marker="o", ms=3, color=color)
+                axes[1, j].plot(part["cutpoint"], part["p_value"], marker="o", ms=3, color=color)
 
-        axes[0, j].axvline(1996, color="0.35", lw=1, ls="--")
+            axes[0, j].axvline(1996, color="0.35", lw=1, ls="--")
 
-        axes[1, j].axvline(1996, color="0.35", lw=1, ls="--")
+            axes[1, j].axvline(1996, color="0.35", lw=1, ls="--")
 
-        axes[1, j].axhline(0.05, color="0.5", lw=1, ls=":")
+            axes[1, j].axhline(0.05, color="0.5", lw=1, ls=":")
 
-        axes[0, j].set_title(label)
+            axes[0, j].set_title(label)
 
-        axes[1, j].set_xlabel("First year of late period")
+            axes[1, j].set_xlabel("First year of late period")
 
-        axes[1, j].set_ylim(0, min(1, max(0.12, show.loc[show["metric"].eq(metric), "p_value"].max() * 1.1)))
+            axes[1, j].set_ylim(0, min(1, max(0.12, show.loc[show["metric"].eq(metric), "p_value"].max() * 1.1)))
 
-    axes[0, 0].set_ylabel("Effect size")
+        axes[0, 0].set_ylabel("Effect size")
 
-    axes[1, 0].set_ylabel("Block-permutation p")
+        axes[1, 0].set_ylabel("Block-permutation p")
 
-    axes[0, 0].legend(frameon=False, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 0.86))
+        axes[0, 0].legend(frameon=False, ncol=3, loc="lower center", bbox_to_anchor=(0.5, 0.86))
 
-    for ax in axes.flat:
+        for ax in axes.flat:
 
-        ax.spines["top"].set_visible(False)
+            ax.spines["top"].set_visible(False)
 
-        ax.spines["right"].set_visible(False)
+            ax.spines["right"].set_visible(False)
 
-    for label, ax in zip("abcdefgh", axes.flat):
+        for label, ax in zip("abcdefgh", axes.flat):
 
-        ax.text(0.01, 0.98, label, transform=ax.transAxes, va="top", fontweight="bold")
+            ax.text(0.01, 0.98, label, transform=ax.transAxes, va="top", fontweight="bold")
 
-    scale_figure_typography(fig, scale=1.22)
+        scale_figure_typography(fig, scale=1.22)
 
-    for suffix in ["png", "pdf"]:
+        for suffix in ["png", "pdf"]:
 
-        fig.savefig(out / f"cutpoint_sensitivity.{suffix}", dpi=300)
+            fig.savefig(out / f"cutpoint_sensitivity.{suffix}", dpi=300)
 
-    plt.close(fig)
+        plt.close(fig)
 
 
 
@@ -302,12 +309,17 @@ def run():
 
 if __name__ == "__main__":
 
-    import sys
+    from pathlib import Path
+    import argparse
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    run()
+    parser = argparse.ArgumentParser(description="Cutpoint sensitivity analysis.")
+    parser.add_argument("--execute", action="store_true", help="confirm execution")
+    parser.add_argument("--output-dir", required=True, help="new project-local output directory")
+    parser.add_argument("--composition", type=Path, help="annual composition NPZ")
+    parser.add_argument("--core-annual", type=Path, help="annual core metrics CSV")
+    parser.add_argument("--events", type=Path, help="exact landfall events CSV")
+    parser.add_argument("--plot", action="store_true", help="also write sensitivity plots")
+    args = parser.parse_args()
+    if not args.execute:
+        parser.error("add --execute to write outputs")
+    run(args.output_dir, args.composition, args.core_annual, args.events, args.plot)

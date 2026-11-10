@@ -26,7 +26,7 @@ dummies; the reported coefficient difference is adjusted minus unadjusted.
 Intervals use 4,999 within-period nonoverlapping three-year block resamples;
 9,999 three-year block permutations provide p values. Coefficients are log odds,
 exponentiated coefficients are odds ratios, and standard errors cluster by year.
-`q_bh_scalar_family` includes the four decomposition, four overall-period and
+`q_bh_scalar_family11` includes the four decomposition, four overall-period and
 three logistic tests in the accompanying three CSV files. The supplied p values
 for the other eight tests define the full BH family for the logistic output.
 

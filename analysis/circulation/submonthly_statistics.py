@@ -187,20 +187,7 @@ def infer(metric, years, nperm=9999, nboot=4999, guard=None, undefined_bootstrap
             ci[:, j] = np.percentile(samples[:, j], [2.5, 97.5])
     return {'early': e, 'late': l, 'difference': delta, 'p': (exceed + 1) / (nperm + 1), 'ci_low': ci[0], 'ci_high': ci[1], 'nperm': nperm, 'nboot': nboot, 'window_years': n, 'bootstrap_undefined_counts': bad, 'bootstrap_policy': undefined_bootstrap}
 
-def infer_skill(frame, prefix, years, *, nperm=9999, nboot=4999):
-    sums = annual_sufficient(frame, [prefix + '_u', prefix + '_v'], years)
-    result = infer(lambda ix: pooled_metric(*sums, ix)[:5], years, nperm, nboot)
-    return (result, sums)
 
-def infer_monthly_advantage(frame, prefix, years, *, nperm=9999, nboot=4999, guard=None, undefined_bootstrap='report_na'):
-    high = annual_sufficient(frame, [prefix + '_u', prefix + '_v'], years)
-    month = annual_sufficient(frame, [prefix + '_u_monthmatched', prefix + '_v_monthmatched'], years)
-
-    def metric(ix):
-        a = pooled_metric(*high, ix)
-        b = pooled_metric(*month, ix)
-        return np.array([a[2] - b[2], b[5] - a[5]])
-    return infer(metric, years, nperm, nboot, guard=guard, undefined_bootstrap=undefined_bootstrap)
 
 def decompose(a, b):
     a = np.asarray(a, float)

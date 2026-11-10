@@ -6,6 +6,7 @@ import zipfile
 import re
 
 import json
+from pathlib import Path
 
 import numpy as np
 
@@ -13,12 +14,14 @@ import pandas as pd
 
 import netCDF4 as nc
 
-from core.paths import PROJECT,output_path,sha256,write_json
+from core.paths import PROJECT,output_path
 
 
 
-def main():
-
+def main(output_dir):
+    output_root=(PROJECT / output_dir).resolve()
+    if not output_root.is_relative_to(PROJECT.resolve()):raise ValueError('Output directory must remain within the project')
+    if output_root.exists():raise FileExistsError(f'Output directory already exists: {output_root}')
     files=[]
 
     for receipt in output_path('data/requests').glob('d26_*_*.json'):
@@ -28,12 +31,13 @@ def main():
         if info.get('download_complete'):files.append(output_path(info['file']))
 
     files=sorted(files)
-
+    if not files:raise FileNotFoundError('No downloaded D26 archives')
+    output_root.mkdir(parents=True)
     inventory=[]; pending={}; pending_times={}; reference=None
 
     for archive in files:
 
-        if re.search(r'_\d{6}\.zip$',archive.name):continue # separate probe
+        if re.search(r'_\d{6}\.zip$',archive.name):continue # skip single-month archives
 
         with zipfile.ZipFile(archive) as z:
 
@@ -49,7 +53,7 @@ def main():
 
                 if not 1966<=year<=2025:raise ValueError(year)
 
-                final=output_path(f'data/derived/d26/oras5_d26_{year}.nc')
+                final=output_root/f'oras5_d26_{year}.nc'
 
                 if final.exists():continue
 
@@ -121,36 +125,21 @@ def main():
 
                         del pending_times[year]
 
-                        print('Prepared D26',year,flush=True)
-
-    old=output_path('data/derived/d26_month_inventory.csv')
 
     frame=pd.DataFrame(inventory)
-
-    if old.exists():frame=pd.concat([pd.read_csv(old),frame],ignore_index=True).drop_duplicates(['year','month'],keep='last')
-
-    if len(frame):frame.sort_values(['year','month']).to_csv(old,index=False)
-
-    present=[y for y in range(1966,2026) if output_path(f'data/derived/d26/oras5_d26_{y}.nc').is_file()]
-
-    write_json('results/diagnostics/d26_preparation.json',{'status':'PASS' if len(present)==60 else 'INCOMPLETE','years_prepared':present,
-
-        'missing_years':sorted(set(range(1966,2026))-set(present)),'incomplete_years':{str(y):sorted(v) for y,v in pending.items()},
-
-        'zero_handling':'Native numeric zero retained separately from NetCDF fill/mask; no missing-value imputation.',
-
-        'definition':'Monthly environmental isotherm depth; no prestorm or cooling-feedback inference.'})
-
+    if len(frame):frame.sort_values(['year','month']).to_csv(output_root/'d26_month_inventory.csv',index=False)
+    present=[y for y in range(1966,2026) if (output_root/f'oras5_d26_{y}.nc').is_file()]
+    if len(present)!=60 or pending:
+        raise ValueError(f'Incomplete D26 input: {len(present)} of 60 years complete')
 
 
 if __name__=='__main__':
 
-    import sys
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output-dir',type=Path,required=True)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to prepare D26 fields')
+    main(args.output_dir)
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main()

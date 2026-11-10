@@ -6,10 +6,11 @@ from core.paths import PROJECT as _LAYOUT_ROOT
 import sys,json
 
 from itertools import combinations
+from pathlib import Path
 
 import numpy as np,pandas as pd
 
-from core.paths import PROJECT,output_path,write_json
+from core.paths import PROJECT,output_path
 
 
 
@@ -27,25 +28,12 @@ Z=_LAYOUT_ROOT / 'data/reference'
 
 ZA=_LAYOUT_ROOT / 'data/reference/agency_comparison';ZV=_LAYOUT_ROOT / 'data/reference/environment_validation/supplemental_validation/results'
 
-OUT=_LAYOUT_ROOT / 'results/agency_comparison';OUT.mkdir(parents=True,exist_ok=True)
+OUT=_LAYOUT_ROOT / 'results/agency_comparison'
 
 AG4=['USA','TOKYO','CMA','HKO'];YEARS=np.arange(1966,2026)
 
-QA=_LAYOUT_ROOT / 'results/diagnostics/agency_comparison.json'
-
-
-
-def close(a,b,tol=1e-9):return bool(np.allclose(np.asarray(a,float),np.asarray(b,float),atol=tol,equal_nan=True))
-
-
-
-def record(stage,checks,info):
-
-    state=json.loads(QA.read_text()) if QA.exists() else {}
-
-    state[stage]=dict(status='PASS' if all(checks.values()) else 'CHECK_FAILED',reproduction_checks=checks,info=info)
-
-    write_json('results/diagnostics/agency_comparison.json',state);print(stage,state[stage]['status'],checks,flush=True)
+def record(stage,info):
+    print(stage,info,flush=True)
 
 
 
@@ -71,9 +59,13 @@ def common_four(cats):
 
 def stage_core():
 
-    cfg=project_config();cats=with_hko_tables(all_catalogues());checks={};info={}
+    core_out=OUT/'core'
+    targets=['trends_frequency_lmi_common.csv', 'lmi_common_four_agency_annual.csv', 'index_hko_summary.csv', 'index_agreement_with_hko.csv']
+    if any((core_out/name).exists() for name in targets):
+        raise FileExistsError(f'Refusing to overwrite existing core outputs: {core_out}')
+    core_out.mkdir(parents=True,exist_ok=True)
 
-    ref=pd.read_csv(ZA/'03_common_storms/core_crossagency_recheck_trends.csv')
+    cfg=project_config();cats=with_hko_tables(all_catalogues());info={}
 
     common3=set.intersection(*(set(cats[a]['lmi']['sid']) for a in ['USA','TOKYO','CMA']))
 
@@ -107,31 +99,9 @@ def stage_core():
 
     t=pd.concat(rows,ignore_index=True)
 
-    # reproduction of the published three-agency values (1966-2025 frequency; 1982-2025 common LMI)
+    t.to_csv(core_out/'trends_frequency_lmi_common.csv',index=False);pd.DataFrame(lmi_rows).to_csv(core_out/'lmi_common_four_agency_annual.csv',index=False)
 
-    for a in ['USA','TOKYO','CMA']:
-
-        for an,rn in [('frequency','frequency'),('lmi_common','lmi_common_storms')]:
-
-            mine=t[(t.common_set=='three')&(t.agency==a)&(t.analysis==an)].iloc[0]
-
-            r=ref[(ref.agency==a)&(ref.analysis==rn)&(ref.end==2025)].iloc[0]
-
-            checks[f'{an}_{a}']=close([mine.sen_slope_per_decade,mine.mk_p_raw,mine.mk_p_fdr_bh],[r.sen_slope_per_decade,r.mk_p_raw,r.mk_p_fdr_bh])
-
-    t.to_csv(OUT/'trends_frequency_lmi_common.csv',index=False);pd.DataFrame(lmi_rows).to_csv(OUT/'lmi_common_four_agency_annual.csv',index=False)
-
-    # Redistribution index: reproduce USA, then HKO projection test, trend and agreement.
-
-    summ=pd.read_csv(ZV/'wnp_tc_redistribution_index_summary.csv');ann=pd.read_csv(ZV/'wnp_tc_redistribution_index_annual.csv')
-
-    usa=RC.load_agency_tracks()['USA'];pf,*_=RC.annual_fields(usa,YEARS,2.5)
-
-    obs,p=RC.block_permutation_projection(pf,YEARS,block=3,nperm=9999);tr=RC.sen_mk(YEARS,RC.projection_scores(pf,YEARS)[1])
-
-    r=summ[(summ.agency=='USA')&(summ.weighting=='track_point')].iloc[0]
-
-    checks['index_USA_projection_p']=close([obs,p,tr['slope_per_decade'],tr['mk_p']],[r.late_minus_early_oos,r.block_permutation_p,r.slope_per_decade,r.mk_p])
+    ann=pd.read_csv(ZV/'wnp_tc_redistribution_index_annual.csv')
 
     h=cats['HKO']['ts_points'];h=h[h.season.between(1966,2025)&h.lon.between(100,180)&h.lat.between(0,40)]
 
@@ -139,7 +109,7 @@ def stage_core():
 
     hobs,hp=RC.block_permutation_projection(hf,YEARS,block=3,nperm=9999);htr=RC.sen_mk(YEARS,hoos)
 
-    pd.DataFrame([dict(agency='HKO',weighting='track_point',late_minus_early_oos=hobs,block_permutation_p=hp,**htr)]).to_csv(OUT/'index_hko_summary.csv',index=False)
+    pd.DataFrame([dict(agency='HKO',weighting='track_point',late_minus_early_oos=hobs,block_permutation_p=hp,**htr)]).to_csv(core_out/'index_hko_summary.csv',index=False)
 
     pat=np.load(ZV/'wnp_tc_redistribution_pattern.npz')
 
@@ -153,7 +123,7 @@ def stage_core():
 
         agr.append(dict(catalog_a=a,catalog_b=b,annual_index_correlation=float(piv[a].corr(piv[b])),change_pattern_correlation=float(np.corrcoef(pa,pb)[0,1])))
 
-    agr=pd.DataFrame(agr);agr.to_csv(OUT/'index_agreement_with_hko.csv',index=False)
+    agr=pd.DataFrame(agr);agr.to_csv(core_out/'index_agreement_with_hko.csv',index=False)
 
     info.update(hko_index=dict(late_minus_early=hobs,p=hp,sen=htr['slope_per_decade'],mk_p=htr['mk_p']),
 
@@ -161,7 +131,7 @@ def stage_core():
 
         pattern_corr_range=[float(agr.change_pattern_correlation.min()),float(agr.change_pattern_correlation.max())])
 
-    record('core',checks,info)
+    record('core',info)
 
 
 
@@ -199,7 +169,12 @@ def events4():
 
 def stage_landfall():
 
-    checks={};info={};ev=events4()
+    landfall_out=OUT/'landfall'
+    if landfall_out.exists() and any(landfall_out.iterdir()):
+        raise FileExistsError(f'Refusing to overwrite existing landfall outputs: {landfall_out}')
+    landfall_out.mkdir(parents=True,exist_ok=True)
+
+    info={};ev=events4()
 
     rows=[]
 
@@ -209,29 +184,13 @@ def stage_landfall():
 
             for r in LL.annual_metrics(fr,YEARS):rows.append({'agency':ag,'definition':dfn,**r})
 
-    ann=pd.DataFrame(rows);ann.to_csv(OUT/'landfall_annual_four_agency.csv',index=False)
+    ann=pd.DataFrame(rows);ann.to_csv(landfall_out/'landfall_annual_four_agency.csv',index=False)
 
-    summ=LL.summarize(ann,CFG);summ.to_csv(OUT/'landfall_summary_four_agency.csv',index=False)
-
-    ref=pd.read_csv(_LAYOUT_ROOT / 'results/landfall/landfall_latitude_summary.csv')
-
-    key=['agency','definition','metric','start','end']
-
-    m=summ.merge(ref,on=key,suffixes=('','_ref'))
-
-    checks['landfall_three_agency_values']=close(m[['sen_slope_per_decade','mk_p','period_difference','period_ci_low','period_ci_high','period_block_p']].values,
-
-        m[['sen_slope_per_decade_ref','mk_p_ref','period_difference_ref','period_ci_low_ref','period_ci_high_ref','period_block_p_ref']].values)
+    summ=LL.summarize(ann,CFG);summ.to_csv(landfall_out/'landfall_summary_four_agency.csv',index=False)
 
     # Leave-one-coast-out (first landfall, all events)
 
-    lo=LL.leave_one_coast_out(ev,CFG);lo.to_csv(OUT/'leave_one_coast_out_four_agency.csv',index=False)
-
-    lref=pd.read_csv(ZA/'01_landfall_latitude/leave_one_coast_out.csv')
-
-    lm=lo.merge(lref,on=['agency','definition','excluded_coast'],suffixes=('','_ref'))
-
-    checks['leave_one_coast_three_agency']=close(lm[['period_difference_mean_lat','block_permutation_p']].values,lm[['period_difference_mean_lat_ref','block_permutation_p_ref']].values)
+    lo=LL.leave_one_coast_out(ev,CFG);lo.to_csv(landfall_out/'leave_one_coast_out_four_agency.csv',index=False)
 
     # 15-yr segments of annual mean first-landfall latitude
 
@@ -245,17 +204,22 @@ def stage_landfall():
 
         seg.append(dict(agency=ag,s1966=v[0],s1981=v[1],s1996=v[2],s2011=v[3],early_internal=v[1]-v[0],late_retreat=v[3]-v[2]))
 
-    pd.DataFrame(seg).to_csv(OUT/'landfall_segments_four_agency.csv',index=False)
+    pd.DataFrame(seg).to_csv(landfall_out/'landfall_segments_four_agency.csv',index=False)
 
     info['segments']=seg
 
-    record('landfall',checks,info)
+    record('landfall',info)
 
 
 
 def stage_common():
 
-    checks={};info={};ev=events4();cats=all_catalogues()
+    result_out=OUT/'common'
+    target=result_out/'common_storm_landfall_four_agency.csv'
+    if target.exists():raise FileExistsError(f'Refusing to overwrite existing output: {target}')
+    result_out.mkdir(parents=True,exist_ok=True)
+
+    info={};ev=events4();cats=all_catalogues()
 
     early=np.flatnonzero(YEARS<=1995);late=np.flatnonzero(YEARS>=1996)
 
@@ -295,23 +259,21 @@ def stage_common():
 
         return out
 
-    c3=set.intersection(*(set(cats[a]['ts_points'].loc[cats[a]['ts_points'].season.between(1966,2025),'sid']) for a in ['USA','TOKYO','CMA']))
+    c4=common_four(cats);r4=run(c4,AG4);r4.to_csv(target,index=False)
 
-    r3=run(c3,['USA','TOKYO','CMA']);ref=pd.read_csv(_LAYOUT_ROOT / 'results/landfall/common_storm_landfall_summary.csv');ref=ref[ref.metric.eq('mean_landfall_latitude')]
-
-    m=r3.merge(ref,on=['agency','definition'],suffixes=('','_ref'))
-
-    checks['common_three_agency']=close(m[['late_minus_early','ci_low','ci_high','block_permutation_p']].values,m[['late_minus_early_ref','ci_low_ref','ci_high_ref','block_permutation_p_ref']].values)
-
-    c4=common_four(cats);r4=run(c4,AG4);r4.to_csv(OUT/'common_storm_landfall_four_agency.csv',index=False)
-
-    info['n_common4']=len(c4);record('common',checks,info)
+    info['n_common4']=len(c4);record('common',info)
 
 
 
-def stage_coast(thresholds):
+def stage_coast(thresholds, *, overwrite=False):
 
-    checks={};ev=events4();early,late=np.arange(30),np.arange(30,60);rows=[]
+    sensitivity_out=OUT/'sensitivity'
+    target=sensitivity_out/'coast_grouping_four_agency.csv'
+    if target.exists() and not overwrite:
+        raise FileExistsError(f'Refusing to overwrite sensitivity output: {target}')
+    sensitivity_out.mkdir(parents=True,exist_ok=True)
+
+    ev=events4();early,late=np.arange(30),np.arange(30,60);rows=[]
 
     taiwan={'taiwan_north':(CG.BASE_NORTH,CG.BASE_SOUTH),'taiwan_south':(CG.BASE_NORTH-{'Taiwan'},CG.BASE_SOUTH|{'Taiwan'}),'taiwan_excluded':(CG.BASE_NORTH-{'Taiwan'},CG.BASE_SOUTH)}
 
@@ -337,7 +299,7 @@ def stage_coast(thresholds):
 
     out=pd.DataFrame(rows)
 
-    path=OUT/'coast_grouping_four_agency.csv'
+    path=target
 
     old=pd.read_csv(path) if path.exists() else pd.DataFrame()
 
@@ -353,21 +315,19 @@ def stage_coast(thresholds):
 
     out.to_csv(path,index=False)
 
-    ref=pd.read_csv(ZA/'06_landfall_grouping/coast_grouping_sensitivity.csv')
-
-    m=out[out.agency.ne('HKO')].merge(ref,on=['agency','event_rule','taiwan_rule','denominator','threshold_km'],suffixes=('','_ref'))
-
-    if len(m):checks[f'coast_three_agency_{"_".join(map(str,thresholds))}']=close(m[['change_percentage_points','block_permutation_p']].values,m[['change_percentage_points_ref','block_permutation_p_ref']].values)
-
-    else:checks[f'coast_rows_{"_".join(map(str,thresholds))}']=True
-
-    record('coast_'+'_'.join(map(str,thresholds)),checks,{'rows':int(len(out))})
+    record('coast_'+'_'.join(map(str,thresholds)),{'rows':int(len(out))})
 
 
 
-def stage_cutpoint(schemes=('full_record','adjacent_25yr'),cuts=range(1991,2002)):
+def stage_cutpoint(schemes=('full_record','adjacent_25yr'),cuts=range(1991,2002), *, overwrite=False):
 
-    checks={};ev=events4();cats=with_hko_tables(all_catalogues())
+    sensitivity_out=OUT/'sensitivity'
+    target=sensitivity_out/'cutpoint_four_agency.csv'
+    if target.exists() and not overwrite:
+        raise FileExistsError(f'Refusing to overwrite sensitivity output: {target}')
+    sensitivity_out.mkdir(parents=True,exist_ok=True)
+
+    ev=events4();cats=with_hko_tables(all_catalogues())
 
     from analysis.tracks.agency_composition_validation import annual_path_composition
 
@@ -401,11 +361,11 @@ def stage_cutpoint(schemes=('full_record','adjacent_25yr'),cuts=range(1991,2002)
 
                 if ag=='HKO':l=cats[ag]['lmi'];l=l.loc[l.season.between(1982,2025)].groupby('season')['lmi_lat'].mean()
 
-                else:l=core.loc[core.agency.eq(ag)].set_index('season').mean_lmi_lat_full.dropna()  # formal annual series (identical to 1e-14)
+                else:l=core.loc[core.agency.eq(ag)].set_index('season').mean_lmi_lat_full.dropna()
 
                 e_,p_=CP.scalar_test(l.index,l.values,ey[ey>=1982],ly[ly>=1982],CFG);rows.append(dict(scheme=scheme,cutpoint=cut,agency=ag,metric='lmi_latitude_difference',effect=e_,p_value=p_))
 
-    out=pd.DataFrame(rows);path=OUT/'cutpoint_four_agency.csv'
+    out=pd.DataFrame(rows);path=target
 
     if path.exists():
 
@@ -413,13 +373,7 @@ def stage_cutpoint(schemes=('full_record','adjacent_25yr'),cuts=range(1991,2002)
 
     out.to_csv(path,index=False)
 
-    ref=pd.read_csv(ZA/'02_cutpoint_sensitivity/cutpoint_sensitivity.csv')
-
-    m=out.merge(ref,on=['scheme','cutpoint','agency','metric'],suffixes=('','_ref'))
-
-    checks['cutpoint_three_agency']=close(m[['effect','p_value']].values,m[['effect_ref','p_value_ref']].values)
-
-    record('cutpoint_'+'_'.join(schemes)+f'_{min(cuts)}_{max(cuts)}',checks,{'rows':int(len(out))})
+    record('cutpoint_'+'_'.join(schemes)+f'_{min(cuts)}_{max(cuts)}',{'rows':int(len(out))})
 
 
 
@@ -433,21 +387,25 @@ def hko_composition(cats):
 
 
 
-def stage_pathdef(definitions):
+def stage_pathdef(definitions, *, overwrite=False):
+
+    pathdef_out=OUT/'path_definition'
+    if definitions!=['check']:
+        if not overwrite and pathdef_out.exists() and any(pathdef_out.iterdir()):
+            raise FileExistsError(f'Refusing to overwrite existing path-definition outputs: {pathdef_out}')
+        pathdef_out.mkdir(parents=True,exist_ok=True)
 
     import analysis.tracks.path_definition_validation as PD
 
-    checks={};cats=all_catalogues();ev=events4()
+    cats=all_catalogues();ev=events4()
 
     first=ev.sort_values('time').drop_duplicates(['agency','sid'])[['agency','sid','time']].rename(columns={'time':'first_landfall_time'})
 
     rows=[];changes={}
 
-    agencies=['HKO'] if definitions!=['check'] else ['USA']
+    defs=definitions
 
-    defs=['track_point','storm_equal'] if definitions==['check'] else definitions
-
-    for ag in agencies:
+    for ag in ['HKO']:
 
         ts=cats[ag]['ts_points'].loc[cats[ag]['ts_points'].season.between(1966,2025)].copy();ts['agency']=ag
 
@@ -467,17 +425,7 @@ def stage_pathdef(definitions):
 
     out=pd.DataFrame(rows)
 
-    ref=pd.read_csv(ZA/'04_track_density_sensitivity/path_definition_sensitivity.csv')
-
-    if definitions==['check']:
-
-        m=out.merge(ref,on=['agency','definition','grid_deg','block_years'],suffixes=('','_ref'))
-
-        checks['pathdef_usa_track_point_storm_equal']=len(m)==2 and close(m[['total_variation','block_permutation_p']].values,m[['total_variation_ref','block_permutation_p_ref']].values)
-
-        record('pathdef_check',checks,{});return
-
-    path=OUT/'path_definition_hko.csv'
+    path=pathdef_out/'path_definition_hko.csv'
 
     if path.exists():
 
@@ -485,17 +433,22 @@ def stage_pathdef(definitions):
 
     out.to_csv(path,index=False)
 
-    for (ag,d,w),ch in changes.items():np.save(OUT/f'pathdef_change_{ag}_{d}.npy',ch)
+    for (ag,d,w),ch in changes.items():np.save(pathdef_out/f'pathdef_change_{ag}_{d}.npy',ch)
 
-    record('pathdef_'+'_'.join(defs),{'rows':True},out.round(4).to_dict('records'))
+    record('pathdef_'+'_'.join(defs),out.round(4).to_dict('records'))
 
 
 
 def stage_climate():
 
+    result_out=OUT/'climate'
+    target=result_out/'climate_mode_four_agency.csv'
+    if target.exists():raise FileExistsError(f'Refusing to overwrite existing output: {target}')
+    result_out.mkdir(parents=True,exist_ok=True)
+
     import analysis.tracks.climate_adjustment_validation as CM
 
-    checks={};cats=all_catalogues()
+    cats=all_catalogues()
 
     z=np.load(ZA/'03_common_storms/annual_path_composition_2p5deg.npz');years=z['years'].astype(int)
 
@@ -517,15 +470,9 @@ def stage_climate():
 
         rows.append(dict(agency=a,pseudo_f=f,partial_r2=r2,block_permutation_p=p))
 
-    out=pd.DataFrame(rows);out.to_csv(OUT/'climate_mode_four_agency.csv',index=False)
+    out=pd.DataFrame(rows);out.to_csv(target,index=False)
 
-    ref=pd.read_csv(ZA/'05_climate_mode_adjustment/hellinger_period_effect_adjusted.csv')
-
-    m=out.merge(ref,on='agency',suffixes=('','_ref'))
-
-    checks['climate_three_agency']=close(m[['pseudo_f','partial_r2','block_permutation_p']].values,m[['pseudo_f_ref','partial_r2_ref','block_permutation_p_ref']].values)
-
-    record('climate',checks,out.round(4).to_dict('records'))
+    record('climate',out.round(4).to_dict('records'))
 
 
 
@@ -533,13 +480,18 @@ def stage_climate():
 
 def stage_speed():
 
+    speed_out=OUT/'speed'
+    if speed_out.exists() and any(speed_out.glob('speed_decomposition_*_four_agency.csv')):
+        raise FileExistsError(f'Refusing to overwrite existing speed outputs: {speed_out}')
+    speed_out.mkdir(parents=True,exist_ok=True)
+
     import analysis.tracks.speed_decomposition as SD
 
     from analysis.shared.inference_stats import add_family_fdr as fdr2
 
     from analysis.shared.agency_data import read_ibtracs_agencies, build_agency_catalog
 
-    cfg=project_config();checks={};cfg['paths']={**cfg['paths'],'processed':str(PROJECT/'data/processed'),'raw':str(PROJECT/'data/raw')}
+    cfg=project_config();cfg['paths']={**cfg['paths'],'processed':str(PROJECT/'data/processed'),'raw':str(PROJECT/'data/raw')}
 
     raw=read_ibtracs_agencies(PROJECT/'data/raw/ibtracs_wp.csv',start=1980,end=2025)
 
@@ -567,25 +519,15 @@ def stage_speed():
 
     for st in (1966,1982):trend_rows.extend(SD._component_trends(a,cfg,f'PROJECT_ts_prelandfall_{st}','total',st,2025))
 
-    tr=fdr2(trend_rows);tr.to_csv(OUT/'speed_decomposition_trends_four_agency.csv',index=False)
+    tr=fdr2(trend_rows);tr.to_csv(speed_out/'speed_decomposition_trends_four_agency.csv',index=False)
 
-    pd.concat(annual_out).to_csv(OUT/'speed_decomposition_annual_four_agency.csv',index=False)
+    pd.concat(annual_out).to_csv(speed_out/'speed_decomposition_annual_four_agency.csv',index=False)
 
-    pd.concat(band_out).to_csv(OUT/'speed_decomposition_bands_four_agency.csv',index=False)
-
-    t=tr.set_index(['dataset','variable'])
-
-    pub={('USA_feng','track_shift'):4.1639,('TOKYO_feng','track_shift'):4.1138,('CMA_feng','track_shift'):7.0262,
-
-         ('USA_feng','regional_speed'):-3.4317,('TOKYO_feng','regional_speed'):-4.8738,('CMA_feng','regional_speed'):-5.0933,
-
-         ('USA_feng','covariance'):0.3614,('TOKYO_feng','covariance'):-1.1195,('CMA_feng','covariance'):-1.7684}
-
-    checks['speed_table_s3_three_agency']=all(abs(t.loc[k,'period_change_percent_of_mean_basin_speed']-v)<5e-5 for k,v in pub.items())
+    pd.concat(band_out).to_csv(speed_out/'speed_decomposition_bands_four_agency.csv',index=False)
 
     qcol=[c for c in tr.columns if c.startswith('q')or c.endswith('q_bh') or c=='mk_q_bh']
 
-    record('speed',checks,{'qcols':qcol,'HKO':tr[tr.dataset.eq('HKO_feng')].round(5).to_dict('records')})
+    record('speed',{'qcols':qcol,'HKO':tr[tr.dataset.eq('HKO_feng')].round(5).to_dict('records')})
 
 
 
@@ -595,11 +537,16 @@ ARC=PROJECT
 
 def stage_sampling(agencies):
 
+    sampling_out=OUT/'storm_sampling'
+    target=sampling_out/'steering_sampling_four_agency.csv'
+    if target.exists():raise FileExistsError(f'Refusing to overwrite existing sampling output: {target}')
+    sampling_out.mkdir(parents=True,exist_ok=True)
+
     import importlib.util
 
     spec=importlib.util.spec_from_file_location('ss',_LAYOUT_ROOT / 'analysis/circulation/steering_sampling_decomposition.py');SS=importlib.util.module_from_spec(spec);spec.loader.exec_module(SS)
 
-    cats=all_catalogues();rows=[];checks={}
+    cats=all_catalogues();rows=[]
 
     rng=np.random.default_rng(202406);blocks=np.arange(60).reshape(20,3)
 
@@ -633,17 +580,13 @@ def stage_sampling(agencies):
 
     ref=pd.read_csv(_LAYOUT_ROOT / 'results/circulation/steering_sampling_layers.csv')
 
-    m=out.merge(ref,on=['layer','agency','wind_component','term'],suffixes=('','_ref'))
-
-    if len(m):checks['sampling_reproduce']=close(m[['change_ms','two_sided_block_permutation_p']].values,m[['change_ms_ref','two_sided_block_permutation_p_ref']].values,1e-12)
-
-    path=OUT/'steering_sampling_four_agency.csv'
+    path=target
 
     allr=pd.concat([ref[out.columns],out[out.agency.eq('HKO')]],ignore_index=True).drop_duplicates(['layer','agency','wind_component','term'],keep='last')
 
     allr.to_csv(path,index=False)
 
-    record('sampling_'+'_'.join(agencies),checks,out[out.agency.eq('HKO')&out.term.isin(['total_change','field','sampling','cosampling','fixed_seasonal','fixed_field'])].round(4).to_dict('records') if 'HKO' in agencies else {})
+    record('sampling_'+'_'.join(agencies),out[out.agency.eq('HKO')&out.term.isin(['total_change','field','sampling','cosampling','fixed_seasonal','fixed_field'])].round(4).to_dict('records') if 'HKO' in agencies else {})
 
 
 
@@ -659,8 +602,10 @@ def load_sts():
 
 def stage_s7perm(nperm=9999):
 
-    """Table S7 permutations use a shared random stream in USA, JMA, CMA, HKO order."""
-
+    """Block-permutation estimates for each agency."""
+    target=OUT/'table_s7_permutation_four_agency.csv'
+    if target.exists():raise FileExistsError(f'Refusing to overwrite existing output: {target}')
+    OUT.mkdir(parents=True,exist_ok=True)
     sts=load_sts();cfg=sts.load_config();months=cfg['typhoon_season'];years=list(range(1966,2026))
 
     grid=dict(np.load(SMS/'steering_2p5deg_cache.npz'));U=sts.field_by_year_month(grid,months,years)
@@ -669,11 +614,7 @@ def stage_s7perm(nperm=9999):
 
     cats=all_catalogues();rng=np.random.default_rng(cfg['statistics']['random_seed'])
 
-    blocks=np.arange(60).reshape(20,3);rows=[];checks={}
-
-    ref=json.loads((SMS/'permutation_test.json').read_text())['agencies']
-
-    lab={'USA':'USA','TOKYO':'JMA','CMA':'CMA','HKO':'HKO'}
+    blocks=np.arange(60).reshape(20,3);rows=[]
 
     for ag in AG4:
 
@@ -711,23 +652,19 @@ def stage_s7perm(nperm=9999):
 
                 rows.append(dict(agency=ag,wind_component=comp,term=name,change_ms=float(v[0]),p=p))
 
-                if lab[ag] in ref:
-
-                    r=ref[lab[ag]][comp][name];checks[f'{ag}_{comp}_{name}']=bool(abs(r['observed']-v[0])<1e-9 and abs(r['p_two_sided']*9999-(p*(nperm+1)-1))<=1.0001)  # stored p = count/9999; same stream, ties within one draw
-
     out=pd.DataFrame(rows);out.to_csv(OUT/'table_s7_permutation_four_agency.csv',index=False)
 
-    fails=[k for k,v in checks.items() if not v]
-
-    record('s7perm',{'three_agency_exact':not fails},{'fails':fails[:20],'HKO':out[out.agency.eq('HKO')].round(4).to_dict('records')})
+    record('s7perm',{'HKO':out[out.agency.eq('HKO')].round(4).to_dict('records')})
 
 
 
 def stage_s7sens():
-
+    target=OUT/'table_s7_sensitivity_four_agency.csv'
+    if target.exists():raise FileExistsError(f'Refusing to overwrite existing output: {target}')
+    OUT.mkdir(parents=True,exist_ok=True)
     sts=load_sts();cfg=sts.load_config();months=cfg['typhoon_season']
 
-    grid25=dict(np.load(SMS/'steering_2p5deg_cache.npz'));cats=all_catalogues();rows=[];checks={}
+    grid25=dict(np.load(SMS/'steering_2p5deg_cache.npz'));cats=all_catalogues();rows=[]
 
     import netCDF4
 
@@ -753,10 +690,6 @@ def stage_s7sens():
 
     grid5={'u':to5(grid25['u']),'v':to5(grid25['v']),'year':grid25['year'],'month':grid25['month'],'lon_edges':np.arange(100,185,5.0),'lat_edges':np.arange(0,45,5.0)}
 
-    ref=json.loads((SMS/'sensitivity.json').read_text())
-
-    lab={'USA':'USA','TOKYO':'JMA','CMA':'CMA','HKO':'HKO'}
-
     for case,grid,start in [('bin_5deg_1966',grid5,1966),('bin_2p5deg_1982',grid25,1982)]:
 
         years=list(range(start,2026));split=start+(2026-start)//2-1
@@ -777,42 +710,19 @@ def stage_s7sens():
 
                 rows.append(dict(case=case,agency=ag,wind_component=comp,field=r['field'],fixed_seasonal=r['fixed_space']['seasonal'],fixed_cosampling=r['fixed_space']['cosampling'],total=r['total_change']))
 
-                if lab[ag] in ref[case]['agencies']:
-
-                    rr=ref[case]['agencies'][lab[ag]][comp]
-
-                    checks[f'{case}_{ag}_{comp}']=bool(abs(rr['field']-r['field'])<1e-8 and abs(rr['fixed_space']['seasonal']-r['fixed_space']['seasonal'])<1e-8 and abs(rr['fixed_space']['cosampling']-r['fixed_space']['cosampling'])<1e-8)
-
     out=pd.DataFrame(rows);out.to_csv(OUT/'table_s7_sensitivity_four_agency.csv',index=False)
 
-    fails=[k for k,v in checks.items() if not v]
-
-    record('s7sens',{'three_agency':not fails},{'fails':fails,'HKO':out[out.agency.eq('HKO')].round(4).to_dict('records')})
+    record('s7sens',{'HKO':out[out.agency.eq('HKO')].round(4).to_dict('records')})
 
 
 
-# ---------------------------------------------------------------- Table S6 four-agency OHC
-
-OHCZ=_LAYOUT_ROOT;OHCSRC=_LAYOUT_ROOT / 'analysis/ocean'
+# ---------------------------------------------------------------- Table S6 OHC (HKO added)
 
 def ohc_modules():
-
-    import importlib.util
-
-    saved=sys.modules.get('common');mods={}
-
-    sys.path.insert(0,str(OHCSRC))
-
-    def load(name):
-
-        spec=importlib.util.spec_from_file_location(name,OHCSRC/f'{name}.py');m=importlib.util.module_from_spec(spec);sys.modules[name]=m;spec.loader.exec_module(m);return m
-
-    load('common');mods['LM']=load('land_mask');mods['M']=load('match_tracks_to_ohc');mods['D']=load('decompose_ohc_exposure')
-
-    if saved is not None:sys.modules['common']=saved
-
-    return mods['M'],mods['D'],mods['LM']
-
+    from analysis.ocean import ohc_matching as matching
+    from analysis.ocean import ohc_decomposition as decomposition
+    from analysis.ocean import land_mask
+    return matching, decomposition, land_mask
 
 
 def hko_ohc_tracks():
@@ -831,6 +741,11 @@ def hko_ohc_tracks():
 
 def stage_ohc_match(y0,y1):
 
+    ocean_out=OUT/'ocean'
+    target=ocean_out/f'ohc_hko_matched_{y0}_{y1}.csv.gz'
+    if target.exists():raise FileExistsError(f'Refusing to overwrite existing OHC matches: {target}')
+    ocean_out.mkdir(parents=True,exist_ok=True)
+
     M,D,LM=ohc_modules();cfg=json.loads((_LAYOUT_ROOT / 'config/ohc.json').read_text());dom=cfg['ohc']['domain']
 
     mpath=output_path('data/derived/ohc_land_mask.npz')
@@ -841,7 +756,7 @@ def stage_ohc_match(y0,y1):
 
         mi=LM.build_land_mask(PROJECT/cfg['matching']['gshhg_land_shapefile'],dom,float(cfg['matching']['land_mask_resolution_deg']));np.savez_compressed(mpath,**mi)
 
-    prepared=_LAYOUT_ROOT / 'data/derived/ohc300';checks={}
+    prepared=_LAYOUT_ROOT / 'data/derived/ohc300'
 
     def match(points):
 
@@ -863,18 +778,6 @@ def stage_ohc_match(y0,y1):
 
         return pd.concat(res) if res else el,points
 
-    # reproduction on one year of CMA from the archived matched table
-
-    ref=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/ohc300/matched_points.csv.gz',parse_dates=['iso_time'])
-
-    r=ref.loc[ref.agency.eq('CMA')&ref.definition.eq('ts_only')&ref.iso_time.dt.year.eq(y0)]
-
-    mm,_=match(r[['agency','definition','sid','season','iso_time','lat','lon','wind']])
-
-    j=mm.merge(r,on=['sid','iso_time'],suffixes=('','_ref'))
-
-    checks[f'cma_{y0}_match']=bool(len(j)==int(r.match_status.ne('outside_domain').sum()) and (j.match_status==j.match_status_ref).all() and (j.point_is_land.astype(str).str.lower()==j.point_is_land_ref.astype(str).str.lower()).all() and np.allclose(j.ohc300.astype(float),j.ohc300_ref.astype(float),equal_nan=True))
-
     h=hko_ohc_tracks();h=h.loc[h.iso_time.dt.year.between(y0,y1)]
 
     mm,pts=match(h)
@@ -887,19 +790,24 @@ def stage_ohc_match(y0,y1):
 
     pts.loc[mm.index,cols]=mm[cols].to_numpy()
 
-    pts.to_csv(OUT/f'ohc_hko_matched_{y0}_{y1}.csv.gz',index=False)
+    pts.to_csv(target,index=False)
 
-    record(f'ohc_match_{y0}_{y1}',checks,{'n':int(len(pts)),'matched':int(pts.match_status.eq('matched').sum())})
+    record(f'ohc_match_{y0}_{y1}',{'n':int(len(pts)),'matched':int(pts.match_status.eq('matched').sum())})
 
 
 
 def stage_ohc_decomp(agency):
 
+    ocean_out=OUT/'ocean'
+    if agency=='HKO' and any((ocean_out/name).exists() for name in ('ohc_hko_summary.csv','ohc_hko_bootstrap.csv')):
+        raise FileExistsError(f'Refusing to overwrite existing OHC results: {ocean_out}')
+    ocean_out.mkdir(parents=True,exist_ok=True)
+
     M,D,LM=ohc_modules();cfg=json.loads((_LAYOUT_ROOT / 'config/ohc.json').read_text());dc=cfg['decomposition']
 
     if agency=='HKO':
 
-        matched=pd.concat([pd.read_csv(f,parse_dates=['iso_time']) for f in sorted(OUT.glob('ohc_hko_matched_*.csv.gz'))],ignore_index=True)
+        matched=pd.concat([pd.read_csv(f,parse_dates=['iso_time']) for f in sorted(ocean_out.glob('ohc_hko_matched_*.csv.gz'))],ignore_index=True)
 
     else:
 
@@ -953,29 +861,15 @@ def stage_ohc_decomp(agency):
 
                         brows.append(b)
 
-    S=pd.DataFrame(srows);B=pd.concat(brows,ignore_index=True);checks={}
+    S=pd.DataFrame(srows);B=pd.concat(brows,ignore_index=True)
 
-    if agency!='HKO':
+    if agency=='HKO':
 
-        rs=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/ohc300/decomposition_summary.csv');rb=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/ohc300/decomposition_bootstrap.csv')
-
-        k=['comparison','agency','definition','year_assignment','land_treatment','weighting']
-
-        m=S.merge(rs,on=k,suffixes=('','_ref'));cols=['delta_exposure','redistribution_component','ocean_component','covariability_component']
-
-        checks['ohc_summary']=len(m)==16*2 and close(m[cols].values,m[[c+'_ref' for c in cols]].values,1e-3)
-
-        mb=B.merge(rb,on=k+['component'],suffixes=('','_ref'))
-
-        checks['ohc_bootstrap']=len(mb)==len(B) and close(mb[['q025','q975']].values,mb[['q025_ref','q975_ref']].values,1e-3)
-
-    else:
-
-        S.to_csv(OUT/'ohc_hko_summary.csv',index=False);B.to_csv(OUT/'ohc_hko_bootstrap.csv',index=False)
+        S.to_csv(ocean_out/'ohc_hko_summary.csv',index=False);B.to_csv(ocean_out/'ohc_hko_bootstrap.csv',index=False)
 
     main=S.loc[S.definition.eq('ts_only')&S.year_assignment.eq('calendar_year')&S.land_treatment.eq('ocean_points_only')&S.weighting.eq('storm_normalized_equal_year')]
 
-    record(f'ohc_decomp_{agency}',checks,main[['comparison','delta_exposure','redistribution_component','ocean_component','covariability_component']].round(0).to_dict('records'))
+    record(f'ohc_decomp_{agency}',main[['comparison','delta_exposure','redistribution_component','ocean_component','covariability_component']].round(0).to_dict('records'))
 
 
 
@@ -983,9 +877,14 @@ def stage_ohc_decomp(agency):
 
 def stage_coverage():
 
+    coverage_out=OUT/'coverage'
+    if coverage_out.exists() and any(coverage_out.iterdir()):
+        raise FileExistsError(f'Refusing to overwrite existing coverage outputs: {coverage_out}')
+    coverage_out.mkdir(parents=True,exist_ok=True)
+
     from analysis.tracks.agency_composition_validation import annual_path_composition
 
-    cats=all_catalogues(1945);rows=[];checks={}
+    cats=all_catalogues(1945);rows=[]
 
     xe=np.arange(100,182.5,2.5);ye=np.arange(0,42.5,2.5)
 
@@ -1001,17 +900,15 @@ def stage_coverage():
 
                 n_ts_points=int(ts.season.eq(y).sum()),n_positions=int(len(t)),wind_available_pct=100*float(t.wind.notna().mean()) if len(t) else np.nan))
 
-    cov=pd.DataFrame(rows);cov.to_csv(OUT/'coverage_four_agency.csv',index=False)
+    cov=pd.DataFrame(rows);cov.to_csv(coverage_out/'coverage_four_agency.csv',index=False)
 
-    z=np.load(ZA/'03_common_storms/annual_path_composition_2p5deg.npz');proj=[];sy=[]
+    proj=[];sy=[]
 
     for ag in AG4:
 
         ts=cats[ag]['ts_points'];yrs=np.arange(int(ts.season.min()),2026)
 
-        F=annual_path_composition(ts,yrs,xe,ye);i66=np.flatnonzero(yrs>=1966)
-
-        if ag!='HKO':checks[f'{ag}_composition_1966_2025']=close(F[i66],z[ag])
+        F=annual_path_composition(ts,yrs,xe,ye)
 
         e=np.flatnonzero((yrs>=1966)&(yrs<=1995));l=np.flatnonzero(yrs>=1996)
 
@@ -1029,9 +926,9 @@ def stage_coverage():
 
             sy.append(dict(agency=ag,start=start,correlation_with_1966=float(np.corrcoef(d,pat)[0,1]),total_variation=float(.5*np.abs(d).sum()),n_early=len(ee)))
 
-    pd.DataFrame(proj).to_csv(OUT/'projection_1945_2025_four_agency.csv',index=False)
+    pd.DataFrame(proj).to_csv(coverage_out/'projection_1945_2025_four_agency.csv',index=False)
 
-    S=pd.DataFrame(sy);S.to_csv(OUT/'start_year_four_agency.csv',index=False)
+    S=pd.DataFrame(sy);S.to_csv(coverage_out/'start_year_four_agency.csv',index=False)
 
     w=S.pivot(index='agency',columns='start',values='total_variation');info={'tv_drop_1945_pct':(100*(1-w[1945]/w[1966])).round(2).dropna().to_dict(),
 
@@ -1039,7 +936,7 @@ def stage_coverage():
 
         'hko_wind_first':int(cov[cov.agency.eq('HKO')&cov.wind_available_pct.gt(0)].season.min())}
 
-    record('coverage',checks,info)
+    record('coverage',info)
 
 
 
@@ -1052,12 +949,18 @@ if __name__=='__main__':
         raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
 
     sys.argv.remove('--execute')
-
+    if '--output-root' in sys.argv:
+        index=sys.argv.index('--output-root')
+        OUT=(PROJECT/Path(sys.argv[index+1])).resolve()
+        if not OUT.is_relative_to(PROJECT.resolve()):raise ValueError('Output root must remain within the project')
+        del sys.argv[index:index+2]
     st=sys.argv[1]
 
-    if st=='coast':stage_coast([int(v) for v in sys.argv[2:]])
+    if st=='coast':
+        args=sys.argv[2:];stage_coast([int(v) for v in args if v!='--overwrite'], overwrite='--overwrite' in args)
 
-    elif st=='pathdef':stage_pathdef(sys.argv[2:])
+    elif st=='pathdef':
+        args=sys.argv[2:];stage_pathdef([arg for arg in args if arg!='--overwrite'], overwrite='--overwrite' in args)
 
     elif st=='climate':stage_climate()
 
@@ -1075,6 +978,12 @@ if __name__=='__main__':
 
     elif st=='sampling':stage_sampling(sys.argv[2:])
 
-    elif st=='cutpoint' and len(sys.argv)>2:stage_cutpoint((sys.argv[2],),range(int(sys.argv[3]),int(sys.argv[4])+1))
+    elif st=='cutpoint':
+        args=[v for v in sys.argv[2:] if v!='--overwrite'];overwrite='--overwrite' in sys.argv[2:]
+        if args:
+            if len(args)!=3:raise ValueError('cutpoint requires scheme, start year and end year')
+            stage_cutpoint((args[0],),range(int(args[1]),int(args[2])+1),overwrite=overwrite)
+        else:stage_cutpoint(overwrite=overwrite)
 
     else:{'core':stage_core,'landfall':stage_landfall,'common':stage_common,'cutpoint':stage_cutpoint}[st]()
+

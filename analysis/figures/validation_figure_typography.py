@@ -73,3 +73,4 @@ def scale_figure_typography(fig, scale: float = FINAL_FONT_SCALE) -> None:
             text.set_fontsize(text.get_fontsize() * scale)
 
     fig.canvas.draw()
+

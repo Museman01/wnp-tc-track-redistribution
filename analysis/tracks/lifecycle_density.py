@@ -1,10 +1,11 @@
 """生成 / 热带路径 / 热带阶段终止 三联密度气候态。
 
-产出 processed/lifecycle_density.npz。
+产出 processed/lifecycle/lifecycle_density.npz。
 生成点取首次 34 kt；路径取热带 TS 阶段；终止点定义为最后一个热带 TS 点
 并命名 tropical_end（不把 IBTrACS 最后记录点称为物理消亡）。三类均按有效年数归一。
 """
 import pandas as pd, numpy as np
+from pathlib import Path
 from core.utils import load_config
 
 
@@ -16,6 +17,11 @@ def hist(x, y, glon, glat):
 
 def main():
     cfg = load_config()
+    output = Path(cfg["paths"]["processed"]) / "lifecycle"
+    targets = ['lifecycle_density.npz']
+    if any((output / name).exists() for name in targets):
+        raise FileExistsError(f"Refusing to overwrite existing analysis outputs: {output}")
+    output.mkdir(parents=True, exist_ok=True)
     r = cfg["regions"]["tc"]
     b = cfg["grids"]["density_bin"]
     glon = np.arange(r["lon_min"], r["lon_max"] + b, b)
@@ -32,7 +38,7 @@ def main():
     # 文件中保存网格中心供绘图；glon/glat 本身是直方图边界。
     lon = (glon[:-1] + glon[1:]) / 2
     lat = (glat[:-1] + glat[1:]) / 2
-    np.savez(f"{cfg['paths']['processed']}/lifecycle_density.npz", lon=lon, lat=lat,
+    np.savez(output / "lifecycle_density.npz", lon=lon, lat=lat,
              genesis=hist(s["genesis_lon"], s["genesis_lat"], glon, glat) / nyr,
              track=hist(stage["lon"], stage["lat"], glon, glat) / nyr,
              tropical_end=hist(lys["lon"], lys["lat"], glon, glat) / nyr, n_years=nyr)

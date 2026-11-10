@@ -11,7 +11,6 @@ import json
 
 import sys
 
-from pathlib import Path
 
 
 
@@ -623,9 +622,9 @@ def main():
 
 
 
+    
 
-
-    # 两期平均场差与月际标准差之比，独立重算一遍确认场处理口径一致。
+    # 两期平均场差与月际标准差之比。
 
     yidx = {y: k for k, y in enumerate(years_all)}
 
@@ -786,3 +785,4 @@ if __name__ == "__main__":
     sys.argv.remove('--execute')
 
     main()
+

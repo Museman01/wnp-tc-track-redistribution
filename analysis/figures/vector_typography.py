@@ -28,8 +28,7 @@ def redraw(stem):
         base_name=row[3].split('+')[-1]
         if base_name.startswith('Arial'):
             filename='arialbi.ttf' if 'BoldItalic' in base_name else 'arialbd.ttf' if 'Bold' in base_name else 'ariali.ttf' if 'Italic' in base_name else 'arial.ttf'
-            font_path=Path('C:/Windows/Fonts')/filename
-            if font_path.is_file():data=font_path.read_bytes()
+            data=(Path('C:/Windows/Fonts')/filename).read_bytes()
         if not data:raise ValueError(row)
         base=row[3].split('+')[-1];tag='Retained'+str(n)
         page.insert_font(fontname=tag,fontbuffer=data)

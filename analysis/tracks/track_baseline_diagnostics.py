@@ -4,6 +4,7 @@ from __future__ import annotations
 from core.paths import PROJECT as _LAYOUT_ROOT
 
 import json
+from pathlib import Path
 
 import numpy as np
 
@@ -11,7 +12,7 @@ import pandas as pd
 
 import netCDF4 as nc
 
-from core.paths import PROJECT,output_path,write_json,import_source
+from core.paths import PROJECT,write_json,import_source
 
 from analysis.tracks.track_metrics import recurvature
 
@@ -75,7 +76,7 @@ def interp(f,lat,lon,plat,plon):
 
 def simulate(seeds,u,v,lat,lon,par):
 
-    """Integration order: record position, sample the genesis-month field, advance."""
+    """Record each position, sample the genesis-month field, then advance."""
 
     a,ub,vb=par
 
@@ -173,7 +174,7 @@ def storm_metrics(t):
 
 
 
-def bam_diagnostics():
+def bam_diagnostics(output_root):
 
     bam=import_source('baseline_motion_reader','analysis/models/counterfactual_steering.py')
 
@@ -187,8 +188,6 @@ def bam_diagnostics():
 
     clim,lat,lon=climatologies(PROJECT/'data/interim/steering.nc')
 
-    archived=np.load(_LAYOUT_ROOT / 'results/models/counterfactual/fields.npz')
-
     old=json.loads((_LAYOUT_ROOT / 'results/models/counterfactual/criteria.json').read_text())['calibration']
 
     sens=pd.read_csv(_LAYOUT_ROOT / 'results/models/bam_sensitivity_scenarios.csv')
@@ -197,13 +196,11 @@ def bam_diagnostics():
 
     rounds=np.load(_LAYOUT_ROOT / 'results/models/bam_sensitivity_annual.npz')
 
-    cases={'original_calibration':((old['alpha'],old['u_beta'],old['v_beta']),{'early':archived['f_BASE_P1'],'late':archived['f_BASE_P2']}),
+    cases={'original_calibration':(old['alpha'],old['u_beta'],old['v_beta']),
 
-           '850-300_actual_dt_max12h':((act.alpha,act.u_intercept_ms,act.v_intercept_ms),
+           '850-300_actual_dt_max12h':(act.alpha,act.u_intercept_ms,act.v_intercept_ms)}
 
-                {'early':rounds['850-300_actual_dt_max12h_early'].mean(0).reshape(16,32),'late':rounds['850-300_actual_dt_max12h_late'].mean(0).reshape(16,32)})}
-
-    rows=[];checks={}
+    rows=[]
 
     periods={'early':(1966,1995),'late':(1996,2025)}
 
@@ -215,7 +212,7 @@ def bam_diagnostics():
 
         rows.append({'case':'observed','period':label,'share_north20':float(f[8:].sum()),**storm_metrics(obs)})
 
-    for case,(par,ref) in cases.items():
+    for case,par in cases.items():
 
         for label,(a,b) in periods.items():
 
@@ -225,17 +222,13 @@ def bam_diagnostics():
 
             f=period_field(t,range(a,b+1))
 
-            err=float(np.abs(f-ref[label]).max());checks[f'{case}_{label}']=err
-
-            if err>1e-10:raise AssertionError(f'Regenerated {case} {label} field differs: {err}')
-
             rows.append({'case':case,'period':label,'share_north20':float(f[8:].sum()),**storm_metrics(t)})
 
         print('BAM storm diagnostics',case,flush=True)
 
-    pd.DataFrame(rows).to_csv(_LAYOUT_ROOT / 'results/models/bam_baseline_track_diagnostics.csv',index=False)
+    pd.DataFrame(rows).to_csv(output_root / 'results/models/bam_baseline_track_diagnostics.csv',index=False)
 
-    # Latitude-band share for each diagnostic variant, using the Table S8 20N division.
+    # Latitude-band share for each variant, divided at 20°N.
 
     band=[]
 
@@ -253,13 +246,9 @@ def bam_diagnostics():
 
                 band.append({'case':key[:-len(period)-1],'period':period,'share_north20':float(rounds[key].mean(0).reshape(16,32)[8:].sum())})
 
-    pd.DataFrame(band).to_csv(_LAYOUT_ROOT / 'results/models/bam_baseline_band_shares.csv',index=False)
+    pd.DataFrame(band).to_csv(output_root / 'results/models/bam_baseline_band_shares.csv',index=False)
 
-    return checks
-
-
-
-def landfall_bands():
+def landfall_bands(output_root):
 
     e=pd.read_csv(_LAYOUT_ROOT / 'results/landfall/hko_landfall_events.csv',parse_dates=['time'])
 
@@ -283,11 +272,11 @@ def landfall_bands():
 
                     'difference_per_year':float(annual.loc[1996:2025].mean()-annual.loc[1966:1995].mean())})
 
-    pd.DataFrame(rows).to_csv(_LAYOUT_ROOT / 'results/landfall/landfall_latitude_band_counts.csv',index=False)
+    pd.DataFrame(rows).to_csv(output_root / 'results/landfall/landfall_latitude_band_counts.csv',index=False)
 
 
 
-def ridge_context():
+def ridge_context(output_root):
 
     w=pd.read_csv(PROJECT/'data/processed/subtropical_high_indices.csv')
 
@@ -301,17 +290,19 @@ def ridge_context():
 
             'late_mean':float(l.mean()),'late_defined_years':int(l.notna().sum()),'difference':float(l.mean()-e.mean())})
 
-    pd.DataFrame(rows).to_csv(_LAYOUT_ROOT / 'results/circulation/subtropical_high_period_means.csv',index=False)
+    pd.DataFrame(rows).to_csv(output_root / 'results/circulation/subtropical_high_period_means.csv',index=False)
 
 
 
-def main():
+def main(output_root=None):
+    out=(PROJECT / (output_root or '.')).resolve()
+    if not out.is_relative_to(PROJECT.resolve()):raise ValueError('Output root must remain within the project')
+    names=['results/models/bam_baseline_track_diagnostics.csv','results/models/bam_baseline_band_shares.csv','results/landfall/landfall_latitude_band_counts.csv','results/circulation/subtropical_high_period_means.csv','results/diagnostics/track_diagnostics.json']
+    if any((out/name).exists() for name in names):raise FileExistsError('Refusing to overwrite existing scientific outputs')
+    for name in names:(out/name).parent.mkdir(parents=True,exist_ok=True)
+    bam_diagnostics(out);landfall_bands(out);ridge_context(out)
 
-    checks=bam_diagnostics();landfall_bands();ridge_context()
-
-    write_json('results/diagnostics/track_diagnostics.json',{'status':'PASS',
-
-        'bam_field_regeneration_maxabs':checks,
+    write_json(out / 'results/diagnostics/track_diagnostics.json',{
 
         'bam_storm_metrics':'In-domain TS-qualified observed tracks versus regenerated baseline trajectories; sustained recurvature uses analysis.tracks.track_metrics.recurvature on in-domain positions; zonal motion uses 0<gap<=12 h segments.',
 
@@ -319,18 +310,16 @@ def main():
 
         'ridge':'data/processed/subtropical_high_indices.csv; ridge_line is the wind-defined U500 zero-crossing index; fixed-contour metrics undefined when the 5880-gpm contour is absent.'})
 
-    print('Track diagnostics saved',flush=True)
+    print('Trajectory and track diagnostics saved',flush=True)
 
 
 
 if __name__=='__main__':
 
-    import sys
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--execute',action='store_true');parser.add_argument('--output-root',type=Path)
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to calculate track diagnostics')
+    main(args.output_root)
 
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    main()

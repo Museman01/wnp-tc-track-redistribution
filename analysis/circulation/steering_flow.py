@@ -13,15 +13,27 @@ processed/steering_annual.csv（固定区域台风季年度引导指数）。
 不能替代逐 TC 日尺度引导诊断。
 """
 import xarray as xr, numpy as np, pandas as pd, netCDF4
+from pathlib import Path
+from core.paths import PROJECT
 from core.utils import load_config
 
 TUNITS = "hours since 1940-01-01 00:00:00"
 TCAL = "standard"
 
 
-def main():
+def main(overwrite=False, output_dir=None):
     cfg = load_config()
-    spath = f"{cfg['paths']['interim']}/steering.nc"
+    if output_dir is None:
+        spath = Path(cfg['paths']['interim']) / 'steering.nc'
+        annual_path = Path(cfg['paths']['processed']) / 'steering_annual.csv'
+    else:
+        directory = (PROJECT / output_dir).resolve()
+        if not directory.is_relative_to(PROJECT.resolve()):raise ValueError('Output directory must remain within the project')
+        directory.mkdir(parents=True, exist_ok=True)
+        spath = directory / 'steering.nc'
+        annual_path = directory / 'steering_annual.csv'
+    if not overwrite and (Path(spath).exists() or annual_path.exists()):
+        raise FileExistsError('Refusing to overwrite existing steering outputs')
     plev = xr.open_dataset(f"{cfg['paths']['interim']}/era5_wnp_dynamic_plev.nc")
     p = plev["level"]
     # 引导层 300–850 hPa，升序后用于沿气压积分；总厚度 Δp=550 hPa。
@@ -76,12 +88,14 @@ def main():
     idx = idx.sel(time=idx.time.dt.month.isin(cfg["typhoon_season"]))
     annual = idx.groupby("time.year").mean().rename(year="season").to_dataframe()
     annual = annual.drop(columns=[c for c in ("number", "expver") if c in annual.columns])
-    annual.to_csv(f"{cfg['paths']['processed']}/steering_annual.csv")
-    fin = float(np.isfinite(sds["u_steer"].isel(time=8)).mean())
-    print(f"steering.nc + steering_annual.csv: {len(annual)} years; "
-          f"finite u_steer frac={fin:.3f}; mean u_steer={annual.u_steer.mean():.2f} m/s, "
-          f"mean shear={annual.shear.mean():.2f} m/s")
+    annual.to_csv(annual_path)
+    sds.close()
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--output-dir', type=Path)
+    parser.add_argument('--overwrite', action='store_true')
+    args = parser.parse_args()
+    main(overwrite=args.overwrite, output_dir=args.output_dir)

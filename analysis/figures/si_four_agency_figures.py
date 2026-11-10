@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import numpy as np,pandas as pd
 
@@ -23,6 +24,7 @@ from analysis.figures.main_figures import COLORS, DISPLAY, AG4, scale_typography
 
 R=lambda n:pd.read_csv(output_path('results/agency_comparison/'+n))
 
+OUTPUT=None
 NUM={'S01':1,'S02':2,'S03':3,'S06':6,'S07':7,'S09':9,'S11':11,'S12':12,'S13':13}
 
 
@@ -51,13 +53,15 @@ def open_axis(ax,right=False):
 
 def save(fig,stem,key,title,scale):
 
+    if OUTPUT is None: raise ValueError('Provide an output directory')
+    if any((OUTPUT / (stem+ext)).exists() for ext in ('.png','.pdf')): raise FileExistsError('Refusing to overwrite an existing figure')
     scale_typography(fig,scale)
 
     meta={'Title':title,'Subject':f'Journal of Geophysical Research: Atmospheres Supporting Information Figure S{NUM[key]}','Creator':'Matplotlib'}
 
-    fig.savefig(output_path(f'figures/{stem}.png'),dpi=300,bbox_inches='tight')
+    fig.savefig(OUTPUT / f'{stem}.png',dpi=300,bbox_inches='tight')
 
-    fig.savefig(output_path(f'figures/{stem}.pdf'),bbox_inches='tight',metadata=meta);plt.close(fig);print('Figure',stem,flush=True)
+    fig.savefig(OUTPUT / f'{stem}.pdf',bbox_inches='tight',metadata=meta);plt.close(fig);print('Figure',stem,flush=True)
 
 
 
@@ -71,7 +75,7 @@ def agency_legend(ax,**kw):
 
 def S01():
 
-    c=R('coverage_four_agency.csv')
+    c=R('coverage/coverage_four_agency.csv')
 
     fig,axes=plt.subplots(3,1,figsize=(8.7,8.0),sharex=True,constrained_layout=True,gridspec_kw={'height_ratios':[1,1,1]})
 
@@ -103,7 +107,7 @@ def S01():
 
 def S02():
 
-    p=R('projection_1945_2025_four_agency.csv')
+    p=R('coverage/projection_1945_2025_four_agency.csv')
 
     fig,ax=plt.subplots(figsize=(8.2,6.8),constrained_layout=True)
 
@@ -125,7 +129,7 @@ def S02():
 
 def S03():
 
-    s=R('start_year_four_agency.csv')
+    s=R('coverage/start_year_four_agency.csv')
 
     fig,axes=plt.subplots(1,2,figsize=(11,5.4),constrained_layout=True)
 
@@ -161,7 +165,7 @@ def S06():
 
     z=pd.read_csv(ZA/'04_track_density_sensitivity/path_definition_sensitivity.csv').query('grid_deg == 2.5 and block_years == 3')
 
-    h=R('path_definition_hko.csv').query('grid_deg == 2.5 and block_years == 3')
+    h=R('path_definition/path_definition_hko.csv').query('grid_deg == 2.5 and block_years == 3')
 
     path=pd.concat([z[z.agency.isin(['USA','TOKYO','CMA'])],h])
 
@@ -199,7 +203,7 @@ def S06():
 
 def S07():
 
-    c=R('climate_mode_four_agency.csv').set_index('agency').loc[AG4]
+    c=R('climate/climate_mode_four_agency.csv').set_index('agency').loc[AG4]
 
     fig,axes=plt.subplots(1,2,figsize=(8.5,3.8),constrained_layout=True);x=np.arange(4)
 
@@ -219,7 +223,7 @@ def S07():
 
 def S09():
 
-    an=R('speed_decomposition_annual_four_agency.csv');tr=R('speed_decomposition_trends_four_agency.csv')
+    an=R('speed/speed_decomposition_annual_four_agency.csv');tr=R('speed/speed_decomposition_trends_four_agency.csv')
 
     fig,axes=plt.subplots(2,2,figsize=(11,7.6),constrained_layout=True)
 
@@ -281,7 +285,7 @@ def S09():
 
 def S11():
 
-    ann=R('landfall_annual_four_agency.csv');s=R('landfall_summary_four_agency.csv')
+    ann=R('landfall/landfall_annual_four_agency.csv');s=R('landfall/landfall_summary_four_agency.csv')
 
     s=s[s.metric.eq('mean_lat')&s.start.eq(1966)]
 
@@ -335,7 +339,7 @@ def S11():
 
 def S12():
 
-    c=R('cutpoint_four_agency.csv');c=c[c.scheme.eq('full_record')]
+    c=R('sensitivity/cutpoint_four_agency.csv');c=c[c.scheme.eq('full_record')]
 
     mets=[('path_total_variation','TVD'),('first_landfall_latitude_difference','Latitude change (°)'),('north_share_difference','Share change'),('lmi_latitude_difference','Latitude change (°)')]
 
@@ -373,7 +377,7 @@ def S12():
 
 def S13():
 
-    t=R('coast_grouping_four_agency.csv').query("taiwan_rule == 'taiwan_north' and denominator == 'named_only'")
+    t=R('sensitivity/coast_grouping_four_agency.csv').query("taiwan_rule == 'taiwan_north' and denominator == 'named_only'")
 
     fig,axes=plt.subplots(3,1,figsize=(8.6,9.8),sharex=True,constrained_layout=True)
 
@@ -402,13 +406,15 @@ def S13():
 
 
 if __name__=='__main__':
-
-    import sys
-
-    if '--execute' not in sys.argv:
-
-        raise SystemExit('Explicit execution required: add --execute. Output writing requires explicit execution.')
-
-    sys.argv.remove('--execute')
-
-    for k in (sys.argv[1:] or list(NUM)):globals()[k]()
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('figures',nargs='*',choices=list(NUM))
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output-dir',required=True,type=Path)
+    args=parser.parse_args()
+    if not args.execute: parser.error('add --execute to create figures')
+    OUTPUT=(PROJECT / args.output_dir).resolve()
+    if not OUTPUT.is_relative_to(PROJECT.resolve()): parser.error('Output directory must remain within the project')
+    if OUTPUT.exists(): parser.error('Provide a new output directory')
+    OUTPUT.mkdir(parents=True)
+    for key in (args.figures or list(NUM)): globals()[key]()

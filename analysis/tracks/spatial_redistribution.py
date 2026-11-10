@@ -6,12 +6,12 @@ rather than merely reproducing changes in annual storm counts or track length.
 
 Outputs
 -------
-results/redistribution_summary.csv
-results/redistribution_grid.csv
-results/redistribution_coast.csv
-results/redistribution_regional_trends.csv
-results/redistribution_annual.npz
-figures/analysis_spatial_redistribution_diagnostic.png/.pdf
+redistribution_summary.csv
+redistribution_grid.csv
+redistribution_coast.csv
+redistribution_regional_trends.csv
+redistribution_annual.npz
+Optional figures: analysis_spatial_redistribution_diagnostic.png/.pdf in the output figures/ subdirectory.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from core.paths import create_new_output_dir
 from core.utils import load_config
 from analysis.shared.inference_stats import add_family_fdr, compositional_change_test, trend_row
 
@@ -282,14 +283,10 @@ def _diagnostic_figure(
     plt.close(fig)
 
 
-def main():
+def main(output_dir, plot=False):
+    output_data=create_new_output_dir(output_dir)
     cfg = load_config()
     processed = Path(cfg["paths"]["processed"])
-    project_root = processed.parents[1]
-    output_data = project_root / "results"
-    figures = project_root / "figures"
-    output_data.mkdir(parents=True, exist_ok=True)
-    figures.mkdir(parents=True, exist_ok=True)
     years = np.arange(START, END + 1)
     block = cfg["statistics"]["bootstrap_block"]
     seed = cfg["statistics"]["random_seed"]
@@ -483,17 +480,20 @@ def main():
         north_named_storm_share=north_storm,
     )
 
-    _diagnostic_figure(
-        figures,
-        years,
-        lon_edges,
-        lat_edges,
-        primary[("path_density", "track_point")],
-        coasts,
-        primary[("landfall_coast", "event")],
-        north_event,
-        primary[("north_vs_south_named_coast", "event")],
-    )
+    if plot:
+        figures=output_data/'figures'
+        figures.mkdir()
+        _diagnostic_figure(
+            figures,
+            years,
+            lon_edges,
+            lat_edges,
+            primary[("path_density", "track_point")],
+            coasts,
+            primary[("landfall_coast", "event")],
+            north_event,
+            primary[("north_vs_south_named_coast", "event")],
+        )
     p_path = primary[("path_density", "track_point")]["global_p"]
     p_coast = primary[("landfall_coast", "event")]["global_p"]
     p_north = primary[("north_vs_south_named_coast", "event")]["global_p"]
@@ -505,4 +505,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--output-dir',type=Path,required=True)
+    parser.add_argument('--plot',action='store_true')
+    args=parser.parse_args()
+    if not args.execute:parser.error('add --execute to calculate spatial redistribution')
+    main(args.output_dir,args.plot)

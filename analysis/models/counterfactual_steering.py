@@ -5,7 +5,6 @@ from __future__ import annotations
 from core.paths import PROJECT as _LAYOUT_ROOT
 
 import json
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -73,16 +72,11 @@ _STEER_CACHE: dict | None = None
 
 
 def _load_steering_once() -> dict:
-    """整场一次性读入内存。
-
-    优先读取 /tmp/steering.nc（若存在），否则读取 data/interim/steering.nc。
-    引导场缓存于内存，各时期气候态由缓存切片计算。
-    """
+    """读取引导流月场并缓存，供各时期气候态计算。"""
     global _STEER_CACHE
     if _STEER_CACHE is not None:
         return _STEER_CACHE
-    local = Path("/tmp/steering.nc")
-    src = local if local.is_file() else ROOT / "data" / "interim" / "steering.nc"
+    src = ROOT / "data" / "interim" / "steering.nc"
     ds = Dataset(src)
     lat = np.asarray(ds.variables["latitude"][:], dtype=float)
     lon = np.asarray(ds.variables["longitude"][:], dtype=float)
@@ -221,7 +215,10 @@ def tvd(d: np.ndarray) -> float:
     return 0.5 * np.abs(d).sum()
 
 
-def main() -> None:
+def main(overwrite=False) -> None:
+    results = _LAYOUT_ROOT / 'results/models/counterfactual'
+    if not overwrite and any((results / name).exists() for name in ('fields.npz', 'criteria.json')):
+        raise FileExistsError('Refusing to overwrite existing counterfactual results')
     cfg = load_config()
     tracks, region = load_tracks(cfg)
     lon_e, lat_e = grid_edges(cfg, region)
@@ -326,7 +323,7 @@ def main() -> None:
         print(f"  判据3 生成后份额  {pg*100:.1f}%  = 平均引导流 {res['share_steer']*100:.1f}%"
               f" + 域内寿命 {res['share_life']*100:.1f}%；生成位置 {res['share_loc']*100:.1f}%")
         print(f"        （Shapley 生成后 73.7–80.0%，印证区间 60–90%）"
-              f" → {'印证' if 0.60 <= pg <= 0.90 else '分歧'}")
+              f" → {'印证' if 0.60 <= pg <= 0.90 else '分歧，须在讨论中说明'}")
     else:
         print("  判据1–3 不适用：判据0未过，本试验对机制问题不给结论。")
 
@@ -340,4 +337,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(overwrite='--overwrite' in sys.argv)
