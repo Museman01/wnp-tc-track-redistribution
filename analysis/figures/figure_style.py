@@ -1,7 +1,4 @@
-"""AGU 版式与全工程统一绘图风格。
-
-所有活动出图函数复用本模块，保持配色、字体和版面一致。
-"""
+'Shared colours, fonts, map geometry and output styles for the scientific figures.'
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 import matplotlib as mpl
@@ -82,12 +79,7 @@ def _load_gshhg_land():
 
 def make_plain_map_ax(ax=None, figsize=(COL1, COL1 * 0.7), *,
                       left_labels=True, bottom_labels=True):
-    """Stable Plate Carree map on a standard Matplotlib axis.
-
-    This avoids a Cartopy/Matplotlib multi-GeoAxes colorbar rendering bug while
-    retaining the same lon/lat coordinates and extent. Coastlines come from the
-    configured GSHHG L1 polygons; administrative borders are intentionally absent.
-    """
+    'Create a Plate Carree axis using the configured GSHHG L1 land polygons.'
     cfg = load_config()
     r = cfg["regions"]["tc"]
     if ax is None:
@@ -112,7 +104,7 @@ def make_plain_map_ax(ax=None, figsize=(COL1, COL1 * 0.7), *,
 
 
 def panel_letter(ax, s, dx=0.02, dy=0.98):
-    """面板字母 a/b/c…（CNS 习惯，左上角加粗）。"""
+    '在左上角添加加粗的面板字母。'
     ax.text(dx, dy, s, transform=ax.transAxes, fontweight="bold",
             fontsize=13, va="top", ha="left")
 
@@ -152,8 +144,6 @@ def save(fig, name):
             ax.set_title("", loc=loc)
     # A small, consistent edge prevents clipping while avoiding the large
     # white border introduced by Matplotlib's default tight-layout padding.
-    # Keep a restrained outer breathing margin so labels and panel letters do
-    # not feel pressed against the page edge in the title-free layout.
     fig.savefig(FIGDIR / f"{stem}.png", dpi=600, bbox_inches="tight", pad_inches=0.08)
     fig.savefig(FIGDIR / f"{stem}.pdf", bbox_inches="tight", pad_inches=0.08)
     plt.close(fig)

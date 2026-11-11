@@ -1,6 +1,6 @@
 """Association between the steering regime at the recurvature anchor and recurvature (June-October storms).
 
-Input (read-only): storm_anchors_and_recurvature.csv from the ERA5 submonthly-steering analysis (stage 4),
+Input (read-only): storm_anchors_and_recurvature.csv from the distributed ERA5 submonthly-steering analysis,
 one row per storm: season, regime label (0-3 = regimes 1-4 in Table S14), recurving (0/1).
 Anchor: first native retained report at or north of 20N, otherwise the earliest westernmost report.
 Test: chi-square statistic of the regime x recurvature table; null distribution from 9,999 permutations

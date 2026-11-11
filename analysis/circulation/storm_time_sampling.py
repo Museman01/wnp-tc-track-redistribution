@@ -234,7 +234,7 @@ def coarsen_steering(cfg: dict, months, years) -> dict:
 
 def coarsen_steering_cached(cfg, months, years):
 
-    """把聚合结果缓存到本任务目录，避免重复解压 909 MB 月场。"""
+    '将月引导风聚合到分析网格，并保存共享处理场。'
 
     cache = _LAYOUT_ROOT / 'results/circulation/storm_sampling' / "steering_2p5deg_cache.npz"
 

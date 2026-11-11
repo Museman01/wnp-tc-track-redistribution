@@ -20,7 +20,7 @@ ROUTES = {
     "ocean": ("analysis.ocean.ohc_pipeline", []),
     "d26": ("analysis.ocean.d26_exposure", []),
     "pathways": ("analysis.tracks.pathway_closure", []),
-    "figures": ("analysis.figures.main_figures", []),
+    "figures": ("analysis.figures.manuscript_figures", []),
     "diagnostics": ("analysis.figures.diagnostic_figures", []),
 }
 

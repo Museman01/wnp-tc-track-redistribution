@@ -91,7 +91,7 @@ def main():
 
     pd.DataFrame(mapping).to_csv(_LAYOUT_ROOT / 'results/tracks/hko_2025_sid_binding.csv',index=False)
 
-    receipt=dict(source_url=url,retrieved_utc=datetime.now(timezone.utc).isoformat(),file=str(target.relative_to(output_path('.'))),bytes=target.stat().st_size,sha256=sha256(target),raw_reports=len(h),raw_storms=h.hko_code.nunique(),ts_eligible_storms=len(eligible),standard_time_reports=len(reports),standard_time_ts_reports=int(reports.is_native_ts.sum()),all_eligible_storms_bound_to_unique_frozen_sid=True,coordinate_conversion='native hundredths of degree / 100',native_intensity='HKO category; no wind conversion',history='HKO records for 1966-2024 from IBTrACS and for 2025 from the official post-analysis file')
+    receipt=dict(source_url=url,retrieved_utc=datetime.now(timezone.utc).isoformat(),file=str(target.relative_to(output_path('.'))),bytes=target.stat().st_size,sha256=sha256(target),raw_reports=len(h),raw_storms=h.hko_code.nunique(),ts_eligible_storms=len(eligible),standard_time_reports=len(reports),standard_time_ts_reports=int(reports.is_native_ts.sum()),coordinate_conversion='native hundredths of degree / 100',native_intensity='HKO category; no wind conversion',history='HKO records for 1966-2024 from IBTrACS and for 2025 from the official post-analysis file')
 
     write_json('data/requests/hko_2025.json',receipt)
 

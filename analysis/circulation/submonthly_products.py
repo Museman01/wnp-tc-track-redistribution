@@ -1,4 +1,4 @@
-"""Generate Tables S13/S14 and the input arrays for Figures S20/S21."""
+'Generate Tables S13/S14, circulation-regime composites and track-decomposition arrays.'
 from pathlib import Path
 import argparse
 import numpy as np

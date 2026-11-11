@@ -31,7 +31,7 @@ inputs:
 ```bash
 python -B -m analysis tracks --execute core --output-root analysis_output/agency
 python -B -m analysis landfall --execute --output-root analysis_output/agency
-python -B -m analysis figures --execute 2 6 --output-dir analysis_output/figures
+python -B -m analysis figures --execute 1 2 3 4 5 --output-dir analysis_output/figures
 python -B -m analysis.ocean.ohc_summary --execute --output-dir analysis_output/ohc_summary
 ```
 
@@ -98,12 +98,10 @@ the configured periods and statistical parameters unchanged.
 Cutpoint and spatial-redistribution calculations write numerical results by
 default; add `--plot` to request their diagnostic figures.
 
-For uniform lettering of supplementary diagnostic figures S14–S19, select the
-figure number and a new output directory, for example:
-
-```bash
-python -B -m analysis.figures.uniform_typography S14 --execute --output-dir analysis_output/figure_s14
-```
+The manuscript layouts for Figures 1–5 are drawn by
+`analysis.figures.manuscript_figures`. The schematic and steering-layer
+supplement use the separate commands in “Manuscript figures and index summaries”
+below. Other plotting modules provide individual diagnostic components.
 
 ## Pre-landfall reference-table limitation
 
@@ -125,3 +123,37 @@ before recomputing fine-grid circulation, trajectory-model or storm-sampling
 analyses. Processed circulation arrays, tables and figures are included.
 docs/EXTERNAL_INPUTS.json identifies the three original fields obtained or regenerated
 separately; MANIFEST.csv identifies all distributed files.
+
+## Manuscript figures and index summaries
+
+Figures 1–5 use the structured track, circulation and landfall results. Figure 5
+also reads `data/derived/etopo1_99-146E_4-46N_2min.nc`; selection and attribution
+are in `docs/SOURCES.md`. The required scipy, xarray and geopandas packages are
+listed in requirements.txt.
+
+```bash
+python -B -m analysis.figures.steering_vectors analysis_output/steering_vectors
+python -B -m analysis.figures.synthesis_figure --execute draw overlay analysis_output/Fig06_outlook_schematic
+```
+
+The primary/USA/JMA/CMA index summary and `index_hko_summary.csv` are stored in
+`data/reference/environment_validation/supplemental_validation/results/`.
+Use the `track_point` rows and the `late_minus_early_oos` and
+`block_permutation_p` columns for the index differences and their p values.
+The `tracks core` command with a new `--output-root` writes the HKO summary to
+`reference_index/` within that output root and the other core tables to `core/`.
+
+
+## Pathway sensitivity outputs
+
+The pathway calculation writes structured membership, decomposition,
+resampling and sensitivity tables under its selected output root. The fitted
+classification is an analysis model; k/seed stability does not establish unique
+physical pathway classes. Interpret the period contrast together with the
+domain and density-denominator sensitivities. Statistical partitions and
+conditional label-permutation tests do not identify dynamical causes.
+
+Diagnostic counts, the trajectory-model baseline, steering-layer sensitivity
+and D26 exposure are available through `python -m analysis diagnostics` with a
+new `--output-root`. The D26 figure is S17. Figure 3 and Figure 1 contain the
+circulation-geometry and four-agency map comparisons, respectively.

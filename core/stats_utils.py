@@ -1,7 +1,4 @@
-"""共享统计工具：应对气候年序列的趋势、自相关、缺测与共线性。
-
-被两篇论文导入；本模块不读写数据文件。
-"""
+'共享统计工具：趋势、自相关、缺测与共线性；本模块不读写数据文件。'
 import numpy as np
 import pandas as pd
 from scipy import stats

@@ -1,4 +1,4 @@
-'年度路径指标 × 环流指数的分布匹配回归。\n\n产出 annual_analysis_table.csv、regression_models.csv 和 regression_vif.csv。\n\n移速/LMI 用样本量加权线性模型(HAC)；转向用事件级二项 GLM(按 season 聚类稳健)；\n登陆事件用带 TC 数暴露量(offset=log n_tc)的 Poisson，过度离散改 NB2\n（alpha 由 discrete.NegativeBinomial 的 MLE 估计后代回 GLM-NB 取 HAC）。\n\n运行环境提示：依赖 statsmodels 的 GLM(cov_type="HAC"/"cluster") 与 discrete.NegativeBinomial；\n落地前确认版本支持这些稳健协方差，NB2 偶有不收敛已设 maxiter=200。\n'
+'年度路径指标与环流指数的统计关联。\n\n移速和LMI采用样本量加权线性模型及HAC协方差；转向采用以season为聚类单位的二项GLM；登陆事件采用以log(n_tc)为offset的Poisson模型。过度离散时使用NB2，其alpha由极大似然估计后用于带HAC协方差的GLM；最大迭代次数为200。\n输出annual_analysis_table.csv、regression_models.csv和regression_vif.csv。'
 import pandas as pd, numpy as np, statsmodels.api as sm
 from core.utils import load_config
 from core.stats_utils import vif_table

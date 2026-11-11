@@ -1,17 +1,4 @@
-"""引导气流（850–300 hPa 深层质量平均风）与垂直切变（200–850 hPa 矢量差）。
-
-产出 interim/steering.nc（月场 u_steer/v_steer/shear）与
-processed/steering_annual.csv（固定区域台风季年度引导指数）。
-读取 dynamic 框 ERA5；其层次含 850/700/600/500/400/300/200 hPa。
-
-实现说明：深层质量平均严格按 `∫u dp/Δp`（dp 权重，非气压值归一）。为在小内存环境
-（dynamic 框单变量约 3 GB）下稳定运行，按年份分批 **eager** 载入薄层切片逐年计算，
-并把结果**逐年增量写入** netCDF（netCDF4 直写），峰值内存仅约单年薄层，
-避免一次性持有/拼接整段场而 OOM。
-
-注意：月平均区域风未去除气旋本体涡旋与 beta 漂移，只用于气候态环流解释，
-不能替代逐 TC 日尺度引导诊断。
-"""
+'引导气流与垂直风切变。\n\n深层引导风为850–300 hPa气压厚度加权平均（∫u dp/Δp），切变为200–850 hPa矢量风之差。输入气压层为850/700/600/500/400/300/200 hPa；逐年读取薄层并写入月场与固定区域的台风季年度指数。\n月平均风未去除气旋本体环流和beta漂移，仅用于气候态环流解释，不能替代逐TC日尺度引导诊断。'
 import xarray as xr, numpy as np, pandas as pd, netCDF4
 from pathlib import Path
 from core.paths import PROJECT

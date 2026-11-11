@@ -1,4 +1,4 @@
-'Synthesis figure (Figure 7): panel b adds the circulation association (double-headed link) and untested processes (dotted box) to the partitions, interpretation, and expressions.'
+'Synthesis schematic: observed circulation associations and untested mechanisms linking track redistribution with landfall and ocean exposure.'
 from __future__ import annotations
 
 from core.paths import PROJECT as _LAYOUT_ROOT
@@ -156,7 +156,7 @@ def draw(variant='overlay',out=None):
 
 
 
-    # ---- (a) map, same frame in the reference layout: x 26.3-350.6 pt, y 15.75-239.35 pt; colour bar below the map
+    # ---- (a) map frame: x 26.3-350.6 pt, y 15.75-239.35 pt; colour bar below the map
     DY=(H-320.0)/2                    # centre panel a against the taller panel b
     ax=fig.add_axes([fx(26.3),fy(MAP_TOP+DY+MAP_H),MAP_W/W,MAP_H/H])
     base=np.array(Image.open(BASE))
@@ -223,7 +223,7 @@ def draw(variant='overlay',out=None):
     GAP=6.0;CW=(X1-X0-2*GAP)/3
     c1=(X0,X0+CW);c2=(X0+CW+GAP,X0+2*CW+GAP);c3=(X1-CW,X1)
     m1=sum(c1)/2;m2=sum(c2)/2;m3=sum(c3)/2;m12=(c1[0]+c2[1])/2
-    L,R=440.45,591.85                  # centres of the two expression boxes, as in the previous layout
+    L,R=440.45,591.85                  # centres of the two expression boxes
     # row 1: shared observed result
     box(X0,12,X1,57,'observed',[
         ('Shared shift toward higher-latitude pathways',16,10.8,'bold'),

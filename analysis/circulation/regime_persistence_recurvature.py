@@ -2,7 +2,7 @@
 
 Inputs (read-only):
   anchors CSV  - storm_anchors_and_recurvature.csv (season, anchor_time, regime 0-3 = regimes 1-4, recurving 0/1)
-  regimes CSV  - stage3_daily_regimes.csv (date, regime) for all 9,180 June-October days, 1966-2025
+  regimes CSV  - daily_regimes.csv (date, regime) for all 9,180 June-October days, 1966-2025
 Persistence: number of consecutive days, up to and including the anchor day, on which the regime equals the anchor-day
 regime. Runs do not cross a season boundary, so runs that start on 1 June are left-censored (counted from 1 June).
 Only days up to the anchor day enter; no later information is used.

@@ -22,12 +22,7 @@ from matplotlib.patches import Rectangle
 
 from matplotlib.lines import Line2D
 
-
 import geopandas as gpd
-
-
-
-
 
 from analysis.figures.shared_figure_style import LABELS as LABEL, PERIODS, geo_ticks
 
@@ -37,9 +32,7 @@ RESULT_DIR=PROJECT/'results/tracks'
 
 _coast=None
 
-
-
-# Preserve the six embedded-image dimensions so Word/PDF geometry stays fixed.
+# Figure canvas dimensions in pixels at 300 dpi.
 
 CANVASES={
 
@@ -49,11 +42,7 @@ CANVASES={
 
     'FigS16_steering_layer_regressions':(3332,2269),
 
-    'FigS17_circulation_geometry_diagnostics':(3379,1153),
-
-    'FigS18_hko_common_window':(3029,1541),
-
-    'FigS19_d26_parallel_exposure':(3334,1204),
+    'FigS17_d26_parallel_exposure':(3334,1204),
 
 }
 
@@ -61,15 +50,11 @@ plt.rcParams.update({'font.size':11.5,'axes.titlesize':11.5,'axes.labelsize':11.
 
                      'xtick.labelsize':10.5,'ytick.labelsize':10.5,'legend.fontsize':10.5})
 
-
-
 def canvas(name):
 
     # Guard against floating-point truncation of an exact integer pixel count.
 
     return tuple((v+.01)/300 for v in CANVASES[name])
-
-
 
 def panel(ax,letter,title=''):
 
@@ -99,19 +84,13 @@ def coast(ax,extent=(100,180,0,40)):
 
     geo_ticks(ax,list(range(int(extent[0]),int(extent[1])+1,20)),list(range(int(extent[2]),int(extent[3])+1,10)))
 
-
-
-def save(fig,name):
-    png=FIGURE_DIR/(name+'.png');pdf=FIGURE_DIR/(name+'.pdf')
+def save(fig,name,output_dir=None):
+    folder=Path(output_dir) if output_dir is not None else FIGURE_DIR
+    png=folder/(name+'.png');pdf=folder/(name+'.pdf')
     if png.exists() or pdf.exists():raise FileExistsError(f'Refusing to overwrite existing figure: {name}')
     fig.savefig(output_path(str(png)),dpi=300)
-    fig.savefig(output_path(str(pdf)),metadata={
-
-        'Creator':'Matplotlib','Author':'Daizhao Huang; Yuanfu Yue'})
-
+    fig.savefig(output_path(str(pdf)),metadata={'Creator':'Matplotlib','Author':'Daizhao Huang; Yuanfu Yue'})
     plt.close(fig);print('Figure',name,flush=True)
-
-
 
 def absolute():
 
@@ -142,8 +121,6 @@ def absolute():
     fig.legend(handles,labels,loc='outside lower center',ncol=2,frameon=False)
 
     save(fig,'FigS14_absolute_passage_recurvature')
-
-
 
 def bam():
 
@@ -191,9 +168,7 @@ def bam():
 
     save(fig,'FigS15_bam_baseline_skill')
 
-
-
-def steering():
+def steering(output_dir=None,reference_vector_degrees=9.0):
 
     a=np.load(_LAYOUT_ROOT / 'results/circulation/steering_field_regressions.npz');lon=a['longitude'];lat=a['latitude'];X,Y=np.meshgrid(lon,lat)
 
@@ -211,73 +186,13 @@ def steering():
 
             im=ax.pcolormesh(lon,lat,a[f'{layer}_{scale}_z_eddy_beta'],cmap='RdBu_r',vmin=-vmax,vmax=vmax,shading='auto')
 
-            q=ax.quiver(X[::2,::2],Y[::2,::2],a[f'{layer}_{scale}_u_beta'][::2,::2],a[f'{layer}_{scale}_v_beta'][::2,::2],scale=12,color='#202020',width=.003)
-
-            ax.add_patch(Rectangle((.73,.015),.26,.08,transform=ax.transAxes,facecolor='white',edgecolor='none',zorder=9))
-
-            ax.quiverkey(q,.80,.055,.5,r'0.5 m s$^{-1}$',labelpos='E',coordinates='axes',zorder=10)
+            q=ax.quiver(X[::2,::2],Y[::2,::2],a[f'{layer}_{scale}_u_beta'][::2,::2],a[f'{layer}_{scale}_v_beta'][::2,::2],scale=1/reference_vector_degrees,scale_units='x',color='#202020',width=.0033)
 
             coast(ax,(80,180,0,65));panel(ax,chr(97+row*2+col),f'850–{layer} hPa, {scale}')
 
     fig.colorbar(im,cax=fig.add_axes([.88,.15,.018,.70]),label='Regional-background-adjusted\n500-hPa height (m per index SD)')
 
-    save(fig,'FigS16_steering_layer_regressions')
-
-    fig,axs=plt.subplots(1,2,figsize=canvas('FigS17_circulation_geometry_diagnostics'))
-
-    axs[0].set_position([.055,.13,.36,.70]);axs[1].set_position([.625,.13,.36,.70])
-
-    zlim=float(np.nanmax(abs(a['period_change_z_eddy'])))
-
-    im=axs[0].pcolormesh(lon,lat,a['period_change_z_eddy'],cmap='RdBu_r',vmin=-zlim,vmax=zlim,shading='auto')
-
-    for p,c in [('early',EARLY),('late',LATE)]:
-
-        cs=axs[0].contour(lon,lat,a['z500_'+p],levels=[5880],colors=[c],linewidths=1.2,zorder=4)
-
-        axs[0].clabel(cs,fmt={5880:'5880 gpm'},fontsize=10)
-
-        axs[1].contour(lon,lat,a['u500_'+p],levels=[0],colors=[c],linewidths=1.2,zorder=4)
-
-    q=axs[1].quiver(X[::2,::2],Y[::2,::2],a['period_change_u300'][::2,::2],a['period_change_v300'][::2,::2],scale=15,width=.003)
-
-    axs[1].add_patch(Rectangle((.71,.875),.28,.08,transform=axs[1].transAxes,facecolor='white',edgecolor='none',zorder=9))
-
-    axs[1].quiverkey(q,.78,.92,.5,r'0.5 m s$^{-1}$',labelpos='E',coordinates='axes',zorder=10)
-
-    for ax in axs:coast(ax,(80,180,0,65))
-
-    panel(axs[0],'a','Height change and\n5880-gpm contours')
-
-    panel(axs[1],'b','500-hPa zero zonal-wind lines\nand steering change')
-
-    fig.colorbar(im,cax=fig.add_axes([.445,.15,.017,.64]),label='1996–2025 minus 1966–1995\nbackground-adjusted height (m)')
-
-    axs[1].legend(handles=[Line2D([0],[0],color=EARLY,label='1966–1995'),Line2D([0],[0],color=LATE,label='1996–2025')],loc='upper left',bbox_to_anchor=(.07,1),frameon=True,facecolor='white',framealpha=1,edgecolor='white',fontsize=10)
-
-    save(fig,'FigS17_circulation_geometry_diagnostics')
-
-
-
-def hko():
-
-    a=np.load(_LAYOUT_ROOT / 'results/tracks/hko_track_fields.npz');fig,axs=plt.subplots(2,2,figsize=canvas('FigS18_hko_common_window'))
-
-    fig.subplots_adjust(left=.06,right=.84,bottom=.085,top=.94,wspace=.20,hspace=.28)
-
-    lim=max(abs(a['native_all_'+k]).max() for k in ['USA','TOKYO','CMA','HKO'])*100
-
-    for ax,k,label in zip(axs.flat,['USA','TOKYO','CMA','HKO'],'abcd'):
-
-        im=ax.imshow(a['native_all_'+k]*100,origin='lower',extent=[100,180,0,40],cmap='RdBu_r',vmin=-lim,vmax=lim,aspect='auto')
-
-        coast(ax);panel(ax,label,LABEL[k])
-
-    fig.colorbar(im,cax=fig.add_axes([.88,.15,.02,.70]),label='Relative track-composition change\n(percentage points)')
-
-    save(fig,'FigS18_hko_common_window')
-
-
+    save(fig,'FigS16_steering_layer_regressions',output_dir=output_dir)
 
 def evidence():
     target=RESULT_DIR/'absolute_track_point_change.npz'
@@ -295,17 +210,13 @@ def evidence():
 
     
 
-
-
-
-
 def d26():
 
     s=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/d26/d26_parallel_summary.csv');b=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/d26/d26_parallel_bootstrap.csv')
 
     terms=['delta_exposure','redistribution_component','ocean_component','covariability_component'];labels=['Net change','Path–season','Ocean field','Annual covariability']
 
-    fig,axs=plt.subplots(1,2,figsize=canvas('FigS19_d26_parallel_exposure'),constrained_layout=True)
+    fig,axs=plt.subplots(1,2,figsize=canvas('FigS17_d26_parallel_exposure'),constrained_layout=True)
 
     for ax,var,unit,div in zip(axs,['D26','OHC300_same_support'],['m',r'GJ m$^{-2}$'],[1,1e9]):
 
@@ -321,9 +232,7 @@ def d26():
 
         ax.axvline(0,color='.5',lw=.7);ax.set_yticks(range(4),labels);ax.invert_yaxis();ax.set_xlabel(f'1996–2025 minus 1966–1995 ({unit})');panel(ax,'ab'[0 if var=='D26' else 1],var.replace('_same_support',''))
 
-    save(fig,'FigS19_d26_parallel_exposure')
-
-
+    save(fig,'FigS17_d26_parallel_exposure')
 
 if __name__=='__main__':
 
@@ -344,12 +253,12 @@ if __name__=='__main__':
 
     if args.only=='counts_and_circulation':absolute();steering();evidence()
 
-    if args.only=='all':absolute();bam();steering();hko();evidence()
+    if args.only=='all':absolute();bam();steering();evidence()
 
     if args.only=='s15':bam()
 
-    if args.only=='maps':bam();steering();hko()
+    if args.only=='maps':bam();steering()
 
-    if args.only=='si':absolute();bam();steering();hko();d26()
+    if args.only=='si':absolute();bam();steering();d26()
 
     if args.only in ['all','d26'] and (_LAYOUT_ROOT / 'results/ocean/d26/d26_parallel_summary.csv').exists():d26()

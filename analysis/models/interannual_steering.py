@@ -1,26 +1,4 @@
-"""年际引导流分布反事实试验（事后探索，非预注册）。
-
-本分析为事后探索性分析，未预注册；结论应作为探索性线索解释。
-
-动机
-----
-主试验用两期**气候态**引导流，把年际变率平均掉了，结果显示两期均值只差 0.14σ、
-不足以驱动路径重组。剩下的可能性是重组来自引导流**分布（频率）**的变化而非均值位移。
-本试验使用**逐年月场**比较引导流分布。
-
-设计
-----
-- 参照组 A：早期生成点，各风暴使用自己那一年的月场
-- 反事实 B：早期生成点，各风暴改用随机抽取的晚期年份同日历月场
-- d_ia = B − A，隔离引导流年际分布变化的效应
-- 随机配对重复 `N_REAL` 次取平均，抑制抽样噪声
-- 模型参数沿用主试验全期标定值，不重新标定
-
-局限
-----
-月场无法表达天气尺度（数日）的引导形势差异。本试验考察**年际**变化，
-不等价于 6 小时分辨率的天气尺度检验。
-"""
+'Exploratory annual-steering counterfactual analysis; not preregistered.\n\nEarly-period storm seeds are integrated with randomly sampled early-year monthly winds for group A and late-year monthly winds for group B. Both groups average N_REAL realizations under a common model calibration. The contrast B-A describes annual-steering distribution differences.\nMonthly fields do not resolve weather-scale steering changes; this analysis is not a six-hourly environmental-steering attribution experiment.'
 
 from __future__ import annotations
 
@@ -48,11 +26,7 @@ SEED = 20260804
 
 def _interp2(field: np.ndarray, lat0: float, dlat: float, nlat: int,
              lon0: float, dlon: float, nlon: int, la: float, lo: float) -> float:
-    """标量双线性插值。
-
-    与 `cfs.bilinear` 数学等价，但不创建临时数组——原实现每步为单个点分配
-    多个 numpy 数组，在 21 次积分、约 35 万个点的规模下开销占绝对主导。
-    """
+    'Scalar bilinear interpolation equivalent to cfs.bilinear.'
     fy = (la - lat0) / dlat
     fx = (lo - lon0) / dlon
     j = int(fy); i = int(fx)

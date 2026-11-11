@@ -846,7 +846,7 @@ def _analysis_update_summary_row(summary, analysis, weighting):
 
 
 def figS25():
-    """正式补充图S25；无整图/小图标题，仅保留(a)-(d)。"""
+    'Plot spatial redistribution and coastal-composition diagnostics.'
     mod = importlib.import_module('analysis.tracks.spatial_redistribution')
     data_dir = _analysis_update_data_dir()
     arrays = np.load(data_dir / "redistribution_annual.npz")
@@ -895,7 +895,7 @@ def figS25():
 
 # ---------------- Supplementary S26 多机构敏感性 ----------------
 def figS26():
-    """正式补充图S26；无整图/小图标题，仅保留(a)-(d)。"""
+    'Plot agency sensitivity diagnostics.'
     mod = importlib.import_module('analysis.tracks.multiagency_sensitivity')
     data_dir = _analysis_update_data_dir()
     mod._figure(
@@ -909,7 +909,7 @@ def figS26():
 
 # ---------------- Supplementary S27 移速诊断性分解 ----------------
 def figS27():
-    """正式补充图S27；无整图/小图标题，仅保留(a)-(d)。"""
+    'Plot translation-speed decomposition diagnostics.'
     mod = importlib.import_module('analysis.tracks.speed_decomposition')
     data_dir = _analysis_update_data_dir()
     existing = pd.read_csv(Path(P) / "annual_analysis_table.csv")

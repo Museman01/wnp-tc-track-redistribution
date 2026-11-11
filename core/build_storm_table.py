@@ -1,9 +1,4 @@
-"""把原始最佳路径整理成两张分析就绪表（两篇论文共同的“主表脊梁”）。
-
-产出：data/processed/tracks.csv（点级，每行一个主时次观测点）、
-      data/processed/storms.csv（风暴级，每行一个 TC）。
-登陆信息由 landfall_gshhg 回填，本模块保持单一职责。
-"""
+'将最佳路径观测整理为点级tracks.csv和风暴级storms.csv。\n\n每行点级记录对应一个主时次观测；每行风暴级记录对应一个TC。登陆信息由landfall_gshhg计算后回填。'
 import pandas as pd
 import numpy as np
 from core.utils import load_config

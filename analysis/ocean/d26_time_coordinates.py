@@ -7,7 +7,6 @@ import re
 
 import zipfile
 
-import hashlib
 import shutil
 from pathlib import Path
 
@@ -70,7 +69,7 @@ def main(output_dir):
         shutil.copy2(source,target)
         with nc.Dataset(target,'r+') as d:
 
-            before=hashlib.sha256(np.ma.filled(d['d26'][:],np.nan).tobytes()).hexdigest()
+            before=np.ma.filled(d['d26'][:],np.nan)
 
             t=d['time'];old=nc.num2date(t[:],t.units,t.calendar)
 
@@ -80,9 +79,10 @@ def main(output_dir):
 
             t.timestamp_provenance='Native ORAS5 time_counter, preserved from each CDS archive member.'
 
-            after=hashlib.sha256(np.ma.filled(d['d26'][:],np.nan).tobytes()).hexdigest()
+            after=np.ma.filled(d['d26'][:],np.nan)
 
-            assert before==after
+            if not np.array_equal(before,after,equal_nan=True):
+                raise ValueError('D26 values changed while updating time coordinates')
 
     pd.DataFrame(rows).sort_values(['year','month']).to_csv(out/'d26_native_times.csv',index=False)
 

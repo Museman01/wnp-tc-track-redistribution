@@ -3,7 +3,6 @@
 产出：data/raw/indices/oni.csv（season,jas_oni）与 pdo.csv（season,pdo）。
 URL/格式以官方页面当时为准；解析失败显式报错并打印原文前几行，绝不静默写空表。
 """
-# requests 下载文本；io 与 pandas 负责解析，hashlib/json 登记来源。
 import io
 import json
 import hashlib
@@ -19,7 +18,7 @@ PDO_URL = "https://www.ncei.noaa.gov/pub/data/cmb/ersst/v5/index/ersst.v5.pdo.da
 
 
 def _save_meta(path, url, extra=None):
-    """与 download_ibtracs 一致：为每个落盘文件写来源/时间/哈希元数据，保证可追溯。"""
+    """记录观测产品的来源、获取时间和文件标识。"""
     meta = {"url": url, "downloaded_utc": datetime.now(timezone.utc).isoformat(),
             "sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest()}
     if extra:

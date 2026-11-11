@@ -51,8 +51,8 @@ p values, with 4,999 and 9,999 draws respectively and seed 202406.
 
 ## Figures
 
-Figure 3 uses the primary track-point contrast stored in
-`results/tracks/track_point_contrast.npz`. Figure 7 separates the observed spatial
+Figure 6a uses the primary track-point contrast stored in
+`results/tracks/track_point_contrast.npz`. Figure 6b separates the observed spatial
 change, statistical partitions, interpretation, coastal/ocean expressions,
 circulation association and untested processes. Its graphic retains
 74%–80% as the single partition percentage in panel b. Plotting sources are under

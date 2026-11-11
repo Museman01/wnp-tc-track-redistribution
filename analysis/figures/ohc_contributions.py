@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
 from pathlib import Path
 
 import matplotlib
@@ -25,12 +23,7 @@ COLORS = {
 }
 
 
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(block)
-    return digest.hexdigest()
+
 
 
 def load_and_validate(source: Path, estimates_path: Path) -> pd.DataFrame:
@@ -182,78 +175,7 @@ def draw(data: pd.DataFrame, output: Path, language: str) -> None:
     plt.close(fig)
 
 
-def write_flint_spec(data: pd.DataFrame, output: Path, source: Path) -> None:
-    weight_rows = []
-    contribution_rows = []
-    comparison_labels = {
-        COMPARISONS[0]: "1966–1995 vs 1996–2025",
-        COMPARISONS[1]: "1982–2003 vs 2004–2025",
-    }
-    zone_labels = {
-        "south_of_20N": "South of 20°N",
-        "20N_and_north": "20°N and north",
-    }
-    for row in data.itertuples(index=False):
-        weight_rows.append(
-            {
-                "comparison": comparison_labels[row.comparison],
-                "latitude_zone": zone_labels[row.bin],
-                "weight_change_pp": float(row.weight_change_pp),
-            }
-        )
-        for component, value in (("P", row.p_1e8), ("O", row.o_1e8)):
-            contribution_rows.append(
-                {
-                    "comparison": comparison_labels[row.comparison],
-                    "latitude_zone": zone_labels[row.bin],
-                    "component": component,
-                    "contribution_1e8_j_m2": float(value),
-                }
-            )
-    payload = {
-        "source": {"path": str(source), "sha256": sha256(source)},
-        "specs": {
-            "weight_change": {
-                "data": {"values": weight_rows},
-                "semantic_types": {
-                    "comparison": "Category",
-                    "latitude_zone": "Category",
-                    "weight_change_pp": "Number",
-                },
-                "chart_spec": {
-                    "chartType": "Grouped Bar Chart",
-                    "encodings": {
-                        "x": {"field": "comparison"},
-                        "y": {"field": "weight_change_pp"},
-                        "group": {"field": "latitude_zone"},
-                    },
-                    "baseSize": {"width": 500, "height": 320},
-                    "chartProperties": {"includeZero_y": True},
-                },
-            },
-            "contributions": {
-                "data": {"values": contribution_rows},
-                "semantic_types": {
-                    "comparison": "Category",
-                    "latitude_zone": "Category",
-                    "component": "Category",
-                    "contribution_1e8_j_m2": "Number",
-                },
-                "chart_spec": {
-                    "chartType": "Grouped Bar Chart",
-                    "encodings": {
-                        "x": {"field": "comparison"},
-                        "y": {"field": "contribution_1e8_j_m2"},
-                        "group": {"field": "latitude_zone"},
-                        "column": {"field": "component"},
-                    },
-                    "baseSize": {"width": 760, "height": 320},
-                    "chartProperties": {"includeZero_y": True, "independentYAxis": True},
-                },
-            },
-        },
-    }
-    output.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
 
 
 def main() -> None:
@@ -267,7 +189,6 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     draw(data, args.output_dir / "FigS_ohc_latitude_contributions_en", "en")
     draw(data, args.output_dir / "FigS_ohc_latitude_contributions_cn", "cn")
-    write_flint_spec(data, args.output_dir / "ohc_latitude_contributions_flint_spec.json", args.source)
 
 
 if __name__ == "__main__":

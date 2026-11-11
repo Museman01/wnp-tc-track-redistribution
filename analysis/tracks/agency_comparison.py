@@ -60,10 +60,14 @@ def common_four(cats):
 def stage_core():
 
     core_out=OUT/'core'
-    targets=['trends_frequency_lmi_common.csv', 'lmi_common_four_agency_annual.csv', 'index_hko_summary.csv', 'index_agreement_with_hko.csv']
+    index_out=ZV if OUT.resolve()==(PROJECT/'results/agency_comparison').resolve() else OUT/'reference_index'
+    targets=['trends_frequency_lmi_common.csv', 'lmi_common_four_agency_annual.csv', 'index_agreement_with_hko.csv']
+    if (index_out/'index_hko_summary.csv').exists():
+        raise FileExistsError(f'Refusing to overwrite existing index summary: {index_out}')
     if any((core_out/name).exists() for name in targets):
         raise FileExistsError(f'Refusing to overwrite existing core outputs: {core_out}')
     core_out.mkdir(parents=True,exist_ok=True)
+    index_out.mkdir(parents=True,exist_ok=True)
 
     cfg=project_config();cats=with_hko_tables(all_catalogues());info={}
 
@@ -109,7 +113,7 @@ def stage_core():
 
     hobs,hp=RC.block_permutation_projection(hf,YEARS,block=3,nperm=9999);htr=RC.sen_mk(YEARS,hoos)
 
-    pd.DataFrame([dict(agency='HKO',weighting='track_point',late_minus_early_oos=hobs,block_permutation_p=hp,**htr)]).to_csv(core_out/'index_hko_summary.csv',index=False)
+    pd.DataFrame([dict(agency='HKO',weighting='track_point',late_minus_early_oos=hobs,block_permutation_p=hp,**htr)]).to_csv(index_out/'index_hko_summary.csv',index=False)
 
     pat=np.load(ZV/'wnp_tc_redistribution_pattern.npz')
 
