@@ -10,8 +10,8 @@ python -m pip install -r requirements.txt
 
 requirements-download.txt lists optional data-acquisition dependencies.
 Copernicus access requires a CDS account and acceptance of the dataset terms.
-The science archive supplies the data and configuration used by the source-only
-ZIP. Run commands from the extracted science archive root.
+The data archive supplies the data and configuration used by the source-only
+ZIP. Run commands from the extracted data archive root.
 
 - config/config.yaml: domains, periods, intensity thresholds, season and grids.
 - config/agency_validation.yaml: agency resampling and exact-landfall settings.

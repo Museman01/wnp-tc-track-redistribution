@@ -21,12 +21,12 @@ and exposure to OHC300 and the 26°C-isotherm depth.
 - `results/`: structured scientific estimates and diagnostics.
 - `figures/`: six main and seventeen supplementary figures.
 
-The code ZIP contains Python sources. The science archive also includes the
+The code ZIP contains Python sources. The data archive also includes the
 configurations, data, results, figures and documentation needed to use them.
 
 ## Run
 
-Use Python 3.12 and run commands from the extracted science archive root:
+Use Python 3.12 and run commands from the extracted data archive root:
 
 ```bash
 python -m pip install -r requirements.txt
