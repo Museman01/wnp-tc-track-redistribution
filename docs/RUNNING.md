@@ -103,18 +103,31 @@ The manuscript layouts for Figures 1–5 are drawn by
 supplement use the separate commands in “Manuscript figures and index summaries”
 below. Other plotting modules provide individual diagnostic components.
 
-## Pre-landfall reference-table limitation
+## Pre-landfall crossing criteria
 
-The retained three-agency table
-`data/reference/agency_comparison/04_track_density_sensitivity/path_definition_sensitivity.csv`
-contains pre-landfall TVDs of 0.177707137275 (USA), 0.168856614191 (TOKYO/JMA)
-and 0.170746706482 (CMA). The corresponding event-input provenance is not established.
-With the distributed `results/landfall/landfall_events_exact.csv` and track records,
-the pre-landfall definition yields TVDs of 0.166910632903, 0.161948575851 and
-0.163179752528, respectively, for 1966–1995 versus 1996–2025.
-The retained reference values should therefore not be used as expected outputs
-for these supplied events. These point estimates do not establish significance
-levels; inference depends on the specified resampling procedure.
+In the three-agency pre-landfall sensitivity, tracks are truncated at the first
+geometric shoreline crossing at any life-cycle stage. The crossing input is
+`results/landfall/landfall_events_exact_full_lifecycle.csv`. With the distributed
+native track records, the TV distances are 0.177707137275 (USA), 0.168856614191
+(TOKYO/JMA) and 0.170746706482 (CMA), for 1966–1995 versus 1996–2025. These are
+the values in
+`data/reference/agency_comparison/04_track_density_sensitivity/path_definition_sensitivity.csv`.
+Use this explicit input to calculate that definition:
+
+```bash
+python -B -m analysis.tracks.path_definition_validation --execute --events results/landfall/landfall_events_exact_full_lifecycle.csv --output-dir analysis_output/path_definitions_first_crossing
+```
+
+The default input, `results/landfall/landfall_events_exact.csv`, instead requires
+the native report before a crossing to meet the agency's tropical-storm
+threshold. Truncation at the first such qualified crossing yields TV distances
+of 0.166910632903, 0.161948575851 and 0.163179752528 for USA, JMA and CMA,
+respectively. The HKO pre-landfall sensitivity uses the first qualified
+tropical-storm crossing. Under each criterion, storms without an eligible
+crossing retain their full track. The native tropical-storm track-point
+selection is the same for both truncation definitions; the crossing criterion
+determines the cutoff time. Geometric landfall statistics elsewhere use the
+qualified tropical-storm events.
 
 ## ERA5-dependent calculations
 
@@ -132,7 +145,7 @@ are in `docs/SOURCES.md`. The required scipy, xarray and geopandas packages are
 listed in requirements.txt.
 
 ```bash
-python -B -m analysis.figures.steering_vectors analysis_output/steering_vectors
+python -B -m analysis diagnostics --execute --only si --output-root analysis_output/diagnostic_figures
 python -B -m analysis.figures.synthesis_figure --execute draw overlay analysis_output/Fig06_outlook_schematic
 ```
 

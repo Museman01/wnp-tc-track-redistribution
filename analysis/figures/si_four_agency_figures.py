@@ -147,7 +147,7 @@ def S03():
 
     axes[0].set(xticks=range(3),xticklabels=starts,xlabel='Start year',ylabel='Spatial correlation with 1966 definition')
 
-    axes[1].set(xticks=range(3),xticklabels=starts,xlabel='Start year',ylabel='Total-variation distance')
+    axes[1].set(xticks=range(3),xticklabels=starts,xlabel='Start year',ylabel='Total variation distance')
 
     open_axis(axes[0]);open_axis(axes[1],right=True)
 
@@ -183,7 +183,7 @@ def S06():
 
         axes[1].bar(base+(i-1.5)*w,part.block_permutation_p,width=w,color=COLORS[a])
 
-    axes[0].set(xticks=base,xticklabels=labels,ylabel='Total-variation distance')
+    axes[0].set(xticks=base,xticklabels=labels,ylabel='Total variation distance')
 
     axes[1].set(xticks=base,xticklabels=labels,ylabel='Block-permutation p');axes[1].axhline(.05,color='0.45',ls=':',lw=1);axes[1].set_ylim(0,.055)
 
@@ -211,7 +211,9 @@ def S07():
 
     axes[0].set(xticks=x,xticklabels=[DISPLAY[a] for a in AG4],ylabel='Partial R²')
 
-    axes[1].set(xticks=x,xticklabels=[DISPLAY[a] for a in AG4],ylabel='Block-permutation p');axes[1].axhline(.05,color='0.45',ls=':',lw=1);axes[1].set_ylim(0,.055)
+    axes[1].set(xticks=x,xticklabels=[DISPLAY[a] for a in AG4],ylabel='Block-permutation p');axes[1].axhline(.05,color='0.45',ls=':',lw=1)
+    axes[1].set_yscale('log');axes[1].set_ylim(1e-4,0.1)   # p values of 0.0005-0.0033 stay visible against the 0.05 line
+    axes[0].set_ylim(top=axes[0].get_ylim()[1]*1.12)   # headroom for the panel letter
 
     open_axis(axes[0]);open_axis(axes[1],right=True);letters(axes)
 
@@ -233,7 +235,7 @@ def S09():
 
         g=tot[tot.agency.eq(a)];axes[0,0].plot(g.season,g.basin_speed,color=COLORS[a],lw=1.2,label=DISPLAY[a])
 
-    axes[0,0].set(ylabel='Basin-mean speed (km h$^{-1}$)');agency_legend(axes[0,0],ncol=4,loc='lower left')
+    axes[0,0].set(ylabel='Basin-mean speed (km h$^{-1}$)');agency_legend(axes[0,0],ncol=4,loc='lower center',bbox_to_anchor=(0.5,1.0))
 
     terms=[('track_shift','Track-density term','#4C78A8'),('regional_speed','Regional-speed term','#E45756'),('covariance','Covariance term','#72B7B2')]
 
@@ -241,7 +243,7 @@ def S09():
 
     for v,l,c in terms:axes[0,1].plot(j.season,j[v],color=c,lw=1.2,label=l)
 
-    axes[0,1].axhline(0,color='0.45',lw=0.8);axes[0,1].set(ylabel='Speed anomaly (km h$^{-1}$)');axes[0,1].set_ylim(top=5.6);axes[0,1].legend(frameon=False,ncol=3,loc='upper right',fontsize=8.5,handlelength=1.6,columnspacing=1.0)
+    axes[0,1].axhline(0,color='0.45',lw=0.8);axes[0,1].set(ylabel='Speed anomaly (km h$^{-1}$)');axes[0,1].legend(frameon=False,ncol=3,loc='lower center',bbox_to_anchor=(0.5,1.0),handlelength=1.6,columnspacing=1.0)   # also the key for panel c
 
     comp=tr[tr.speed_type.eq('total')&tr.dataset.isin([f'{a}_feng' for a in AG4])]
 
@@ -259,17 +261,17 @@ def S09():
 
     axes[1,0].axhline(0,color='0.4',lw=0.8);axes[1,0].set(xticks=x,xticklabels=[DISPLAY[a] for a in AG4],ylabel='Change (% of mean basin speed)')
 
-    axes[1,0].set_ylim(top=9.0);axes[1,0].legend(frameon=False,loc='upper right')
+    axes[1,0].set_ylim(top=9.0)
 
     pr=an[an.agency.eq('USA_project')]
 
     ex=pd.read_csv(PROJECT/'data/processed/annual_analysis_table.csv');ex=ex[ex.scope.eq('annual')&ex.season.between(1966,2025)]
 
-    axes[1,1].plot(pr.season,pr.basin_speed,color='#1F77B4',lw=1.2,label='Point-weighted decomposition')
+    axes[1,1].plot(pr.season,pr.basin_speed,color='#1F5AA6',lw=1.2,label='Point-weighted decomposition')
 
-    axes[1,1].plot(ex.season,ex.speed,color='#FF7F0E',lw=1.2,label='Storm-equal metric')
+    axes[1,1].plot(ex.season,ex.speed,color='#222222',lw=1.2,label='Storm-equal metric')
 
-    axes[1,1].set(xlabel='Year',ylabel='Basin-mean speed (km h$^{-1}$)');axes[1,1].legend(frameon=False,loc='lower center')
+    axes[1,1].set(xlabel='Year',ylabel='Basin-mean speed (km h$^{-1}$)');axes[1,1].set_ylim(top=axes[1,1].get_ylim()[1]+0.30*np.ptp(axes[1,1].get_ylim()));axes[1,1].legend(frameon=False,ncol=1,loc='upper right')
 
     for ax in axes[:,0]:open_axis(ax)
 
@@ -341,7 +343,7 @@ def S12():
 
     c=R('sensitivity/cutpoint_four_agency.csv');c=c[c.scheme.eq('full_record')]
 
-    mets=[('path_total_variation','TVD'),('first_landfall_latitude_difference','Latitude change (°)'),('north_share_difference','Share change'),('lmi_latitude_difference','Latitude change (°)')]
+    mets=[('path_total_variation','Total variation distance'),('first_landfall_latitude_difference','Latitude change (°)'),('north_share_difference','Share change (percentage points)'),('lmi_latitude_difference','Latitude change (°)')]
 
     fig,axes=plt.subplots(4,2,figsize=(9.2,13.2),sharex=True,constrained_layout=True)
 
@@ -351,7 +353,7 @@ def S12():
 
             g=c[c.agency.eq(a)&c.metric.eq(m)].sort_values('cutpoint')
 
-            axes[r,0].plot(g.cutpoint,g.effect,'-o',color=COLORS[a],ms=3.5,lw=1.2,label=DISPLAY[a])
+            axes[r,0].plot(g.cutpoint,g.effect*(100 if m=='north_share_difference' else 1),'-o',color=COLORS[a],ms=3.5,lw=1.2,label=DISPLAY[a])
 
             axes[r,1].plot(g.cutpoint,g.p_value,'-o',color=COLORS[a],ms=3.5,lw=1.2)
 
@@ -359,17 +361,17 @@ def S12():
 
         for ax in axes[r]:ax.axvline(1996,color='0.4',ls='--',lw=0.9)
 
+        for ax in axes[r]:lo_,hi_=ax.get_ylim();ax.set_ylim(lo_,hi_+0.12*(hi_-lo_))   # headroom for the panel letters
         open_axis(axes[r,0]);open_axis(axes[r,1],right=True)
 
     axes[0,0].legend(frameon=False,loc='upper left',bbox_to_anchor=(0.08,1.0))
 
-    for ax in axes[0]:ax.xaxis.set_tick_params(labeltop=True)
 
     for ax in axes[-1]:ax.set_xlabel('First year of late period')
 
     letters(np.r_[axes[:,0],axes[:,1]])
 
-    save(fig,'FigS12_cutpoint_sensitivity','S12','Moving-cutpoint sensitivity',1.10)
+    save(fig,'FigS12_cutpoint_sensitivity','S12','Moving-cutpoint sensitivity',1.40)
 
 
 

@@ -23,13 +23,7 @@ EARLY, LATE = PERIODS['early'][0], PERIODS['late'][0]
 
 
 def letter(ax, s):
-    ax.text(0.015, 0.985, s, transform=ax.transAxes, va='top', ha='left', fontsize=12, fontweight='bold', zorder=12,
-            bbox=dict(facecolor='white', edgecolor='none', alpha=0.85, pad=0.6))
-
-
-def tag(ax, s):
-    ax.text(0.075, 0.982, s, transform=ax.transAxes, va='top', ha='left', fontsize=10.5, zorder=11,
-            bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=1.2))
+    ax.text(0.015, 0.985, s, transform=ax.transAxes, va='top', ha='left', fontsize=12, fontweight='bold', zorder=12)
 
 
 def geo(ax, extent=(100, 0, 180, 40), last=True):
@@ -55,7 +49,7 @@ def fig1():
     tr = np.load(PROJECT / 'results/tracks/hko_track_fields.npz')
     fig = plt.figure(figsize=(11.6, 7.9))
     gs = fig.add_gridspec(3, 3, width_ratios=[1, 1, 0.035], height_ratios=[0.95, 1, 1], left=0.07, right=0.93,
-                          bottom=0.05, top=0.98, hspace=0.24, wspace=0.10)
+                          bottom=0.05, top=0.98, hspace=0.30, wspace=0.10)
     axa = fig.add_subplot(gs[0, 0]); axb = fig.add_subplot(gs[0, 1])
     for a in AG3:
         p = annual[annual.agency.eq(a)]; axa.plot(p.season, p.n_tc, color=COLORS[a], lw=1.2, label=DISPLAY[a])
@@ -75,15 +69,15 @@ def fig1():
     for i, k in enumerate(AG4):
         ax = fig.add_subplot(gs[1 + i // 2, i % 2])
         m = ax.imshow(tr['native_all_' + k] * 100, origin='lower', extent=[100, 180, 0, 40], cmap='RdBu_r', vmin=-lim, vmax=lim, aspect='auto', zorder=1)
-        geo(ax, last=bool(i % 2)); tag(ax, DISPLAY[k]); maps.append(ax)
+        geo(ax, last=bool(i % 2)); maps.append(ax)
         if i % 2: ax.tick_params(axis='y', labelleft=False)
         if i < 2: ax.tick_params(axis='x', labelbottom=False)
     for ax, s in zip([axa, axb] + maps, 'abcdef'): letter(ax, s)
     fig.canvas.draw()
     top = maps[1].get_position(); bot = maps[3].get_position()
     cax = fig.add_axes([top.x1 + 0.012, bot.y0, 0.014, top.y1 - bot.y0])
-    fig.colorbar(m, cax=cax, label='1996–2025 minus 1966–1995 relative\ntrack-composition change (percentage points)')
-    save(fig, 'Fig01_cross_agency_redistribution', 1, 'Cross-agency frequency, redistribution index and track-composition change', 1.12)
+    fig.colorbar(m, cax=cax, label='Change (percentage points)')
+    save(fig, 'Fig01_cross_agency_redistribution', 1, 'Cross-agency frequency, redistribution index and track-composition change', 1.70)
 
 
 # ---------------------------------------------------------------- Figure 2: genesis-distribution and conditional-track-field terms
@@ -96,14 +90,14 @@ def fig2():
     for ax, k, name, s, cmap in zip(axs, ['genesis', 'propagation'], ['Genesis distribution', 'Conditional track field'], 'ab', ['PuOr_r', 'RdBu_r']):
         v = np.abs(arr[k]).max()
         ms.append(ax.pcolormesh(lo, la, arr[k], cmap=cmap, vmin=-v, vmax=v, shading='flat', zorder=1))
-        geo(ax, last=(s == 'b')); tag(ax, name); letter(ax, s)
+        geo(ax, last=(s == 'b')); letter(ax, s)
     axs[1].tick_params(axis='y', labelleft=False)
     fig.canvas.draw()
-    for ax, mm, lab in [(axs[0], ms[0], 'Panel a (percentage points per cell)'), (axs[1], ms[1], 'Panel b (percentage points per cell)')]:
+    for ax, mm, lab in [(axs[0], ms[0], 'Contribution (percentage points per cell)'), (axs[1], ms[1], 'Contribution (percentage points per cell)')]:
         p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.1 * p.width, 0.075, 0.8 * p.width, 0.035])
         cb = fig.colorbar(mm, cax=cax, orientation='horizontal', label=lab)
         cb.ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f'{v:.2f}'.rstrip('0').rstrip('.').replace('-', '\u2212') if v else '0'))
-    save(fig, 'Fig02_genesis_conditional_track_field_terms', 2, 'Genesis-distribution and conditional-track-field terms', 1.10, 320)
+    save(fig, 'Fig02_genesis_conditional_track_field_terms', 2, 'Genesis-distribution and conditional-track-field terms', 1.70, 320)
 
 
 # ---------------------------------------------------------------- Figure 3: index regressions (a, b) and two-period circulation (c, d)
@@ -121,7 +115,7 @@ def fig3():
         # Reference length (stated in the caption): 1 m s-1 per index SD spans 6 degrees of longitude.
         a_.quiver(lon[::2], lat[::2], F[f'{sc}_u_beta'][::2, ::2], F[f'{sc}_v_beta'][::2, ::2], color='0.15',
                   scale=1 / 6, scale_units='x', width=0.0024, zorder=5)
-        geo(a_, (80, 0, 180, 65), last=(s == 'b')); tag(a_, name); letter(a_, s)
+        geo(a_, (80, 0, 180, 65), last=(s == 'b')); letter(a_, s)
     # Panel c (zero-wind lines and steering change) on the left; panel d (height change) beside its colour bar.
     d, c = ax[1]
     m2 = c.pcolormesh(S['longitude'], S['latitude'], S['period_change_z_eddy'], cmap='PuOr_r', vmin=-zlim, vmax=zlim, shading='auto', zorder=1)
@@ -132,18 +126,15 @@ def fig3():
     d.quiver(X[::2, ::2], Y[::2, ::2], S['period_change_u300'][::2, ::2], S['period_change_v300'][::2, ::2],
              scale=1 / 7.5, scale_units='x', width=0.0027, color='0.15', zorder=5)
     geo(d, (80, 0, 180, 65), last=False); geo(c, (80, 0, 180, 65))
-    tag(c, 'Height change, 5880-gpm contours'); tag(d, 'Zero zonal-wind lines, steering change')
     letter(d, 'c'); letter(c, 'd')
-    d.legend(handles=[Line2D([0], [0], color=EARLY, lw=1.3, label='1966–1995'), Line2D([0], [0], color=LATE, lw=1.3, label='1996–2025')],
-             loc='upper left', bbox_to_anchor=(0.0, 0.92), frameon=True, facecolor='white', framealpha=0.9, edgecolor='none', fontsize=9)
     for a_ in (ax[0][1], c): a_.tick_params(axis='y', labelleft=False)
     for a_ in ax[0]: a_.tick_params(axis='x', labelbottom=False)
     fig.canvas.draw()
-    for row, mm, lab in [(0, m1, 'Background-adjusted 500-hPa height\nregression (m per index SD)'),
-                         (1, m2, '1996–2025 minus 1966–1995\nbackground-adjusted height (m)')]:
+    for row, mm, lab in [(0, m1, 'Regression (m per index SD)'),
+                         (1, m2, 'Change (m)')]:
         pb = ax[row][1].get_position(); cax = fig.add_axes([pb.x1 + 0.012, pb.y0, 0.014, pb.height])
         fig.colorbar(mm, cax=cax, label=lab)
-    save(fig, 'Fig03_circulation_regression_and_two_period_change', 3, 'Circulation regressions and two-period circulation change', 1.10)
+    save(fig, 'Fig03_circulation_regression_and_two_period_change', 3, 'Circulation regressions and two-period circulation change', 1.68)
 
 
 # ---------------------------------------------------------------- Figure 4: regime-frequency and within-regime terms
@@ -162,30 +153,30 @@ def fig4():
         sl = slice(None, None, 2)
         # Reference length (stated in the caption): 1 m s-1 spans 1.5 degrees of longitude.
         ax.quiver(lon[sl], lat[sl], comp[k, 0][sl, sl], comp[k, 1][sl, sl], scale=1 / 1.5, scale_units='x', width=0.0032, color='#1A1A1A', zorder=5)
-        geo(ax, (100, 0, 180, 45), last=bool(k % 2)); tag(ax, f'Regime {k + 1}'); letter(ax, 'abcd'[k])
+        geo(ax, (100, 0, 180, 45), last=bool(k % 2)); letter(ax, 'abcd'[k])
         if k % 2: ax.tick_params(axis='y', labelleft=False)
         ax.tick_params(axis='x', labelbottom=False)
     fig.canvas.draw()
     top = fig.axes[1].get_position(); bot = fig.axes[3].get_position()
     cb = fig.colorbar(im, cax=fig.add_axes([top.x1 + 0.012, bot.y0, 0.014, top.y1 - bot.y0]))
-    cb.set_label('850–300-hPa zonal-wind anomaly (m s$^{-1}$)')
+    cb.set_label('Zonal-wind anomaly (m s$^{-1}$)')
     axs = [fig.add_subplot(gs[2, 0]), fig.add_subplot(gs[2, 1])]; ms = []
     for ax, key, name, s in zip(axs, ['frequency_pp', 'within_pp'], ['Regime-frequency term', 'Within-regime term'], 'ef'):
         cmap, l = ('PuOr_r', lim / 20) if key == 'frequency_pp' else (TEAL_CORAL, lim)
         ms.append(ax.pcolormesh(b['lon_edges'], b['lat_edges'], b[key], cmap=cmap, vmin=-l, vmax=l, zorder=1))
-        geo(ax, last=(s == 'f')); tag(ax, name); letter(ax, s)
+        geo(ax, last=(s == 'f')); letter(ax, s)
     axs[1].tick_params(axis='y', labelleft=False)
     fig.canvas.draw()
-    for ax, mm, ticks, lab in [(axs[0], ms[0], [-.03, -.02, -.01, 0, .01, .02, .03], 'Panel e (percentage points)'),
-                               (axs[1], ms[1], [-.6, -.3, 0, .3, .6], 'Panel f (percentage points)')]:
+    for ax, mm, ticks, lab in [(axs[0], ms[0], [-.03, 0, .03], 'Contribution (percentage points)'),
+                               (axs[1], ms[1], [-.6, -.3, 0, .3, .6], 'Contribution (percentage points)')]:
         p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.1 * p.width, p.y0 - 0.068, 0.8 * p.width, 0.014])
         cb = fig.colorbar(mm, cax=cax, orientation='horizontal', label=lab); cb.set_ticks(ticks)
         n = 2 if abs(ticks[-1]) < .1 else 1
         cb.ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _, n=n: f'{v:.{n}f}'.replace('-', '\u2212')))
-    save(fig, 'Fig04_steering_regimes_and_track_decomposition', 4, 'Steering regimes and regime decomposition of track composition', 1.10, 320)
+    save(fig, 'Fig04_steering_regimes_and_track_decomposition', 4, 'Steering regimes and regime decomposition of track composition', 1.70, 320)
 
 
-# ---------------------------------------------------------------- Figure 5: landfall locations over relief (a, c) and latitude distributions (b, d)
+# ---------------------------------------------------------------- Figure 5: landfall-location maps and latitude distributions, (a) all events and (b) first landfall
 TOPO = PROJECT / 'data/derived/etopo1_99-146E_4-46N_2min.nc'   # ETOPO1 subset (Amante & Eakins, 2009)
 
 
@@ -279,15 +270,8 @@ def fig5():
         axm.set_xticks([100, 110, 120, 130, 140]); axm.set_yticks([10, 20, 30, 40])
         if r == 0: axm.tick_params(axis='x', labelbottom=False); axp.tick_params(axis='x', labelbottom=False)
         else: axp.set_xlabel('Share of landfalls (% per degree latitude)')
-        tag_box = dict(facecolor='white', edgecolor='none', alpha=0.85, pad=1.2)
-        axm.text(0.97, 0.03, name, transform=axm.transAxes, ha='right', va='bottom', fontsize=10.5, zorder=12, bbox=tag_box)
-        letter(axm, 'ac'[r]); letter(axp, 'bd'[r])
-    lab = ('1966–1995', '1996–2025') if MODE == 'points' else ('Lower share in 1996–2025', 'Higher share in 1996–2025')
-    fig.legend(handles=[Line2D([0], [0], marker='o', ls='none', mfc=EARLY, mec='white', ms=7, label=lab[0]),
-                        Line2D([0], [0], marker='o', ls='none', mfc=LATE, mec='white', ms=7, label=lab[1]),
-                        Line2D([0], [0], color='0.3', ls='--', label='Period mean of annual mean latitude')],
-               ncol=3, frameon=False, loc='lower center', bbox_to_anchor=(0.5, 0.0))
-    save(fig, 'Fig05_landfall_share_change_and_latitude_distribution', 5, 'Landfall locations and latitude distributions', 1.08)
+        letter(axm, 'ab'[r])   # map and latitude profile of one landfall definition form one panel
+    save(fig, 'Fig05_landfall_share_change_and_latitude_distribution', 5, 'Landfall locations and latitude distributions', 1.40)
 
 
 def main():

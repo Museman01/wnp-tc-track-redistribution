@@ -1,6 +1,6 @@
 # Western North Pacific tropical cyclone track redistribution
 
-Software version: **2.0.1**. Data archive: https://doi.org/10.5281/zenodo.24128149.
+Software version: **2.0.2**. Data archive: https://doi.org/10.5281/zenodo.24188084.
 
 Analysis code and supporting data for *Life-Cycle Redistribution of Western
 North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude:
@@ -39,7 +39,7 @@ Choose new output locations to retain the distributed results.
 
 | Documentation | Purpose |
 | --- | --- |
-| [RUNNING](docs/RUNNING.md) | Commands, parameter locations, scientific inputs and pre-landfall reference-table limitation |
+| [RUNNING](docs/RUNNING.md) | Commands, parameter locations, scientific inputs and pre-landfall crossing criteria |
 | [SOURCES](docs/SOURCES.md) | Data products, citations, licences and regional selections |
 | [ERA5 inputs](docs/ERA5_INPUTS.md) | External pressure-level and steering inputs |
 | [Circulation analysis](docs/SUBMONTHLY_STEERING.md) | Wind sampling and daily circulation regimes |
@@ -49,8 +49,8 @@ Calculations and figures can start from the supplied processed inputs. Large
 ERA5 pressure-level and six-hourly steering fields require separate acquisition
 for meteorological preprocessing, environmental resampling and trajectory
 integration. Their product selections and input formats are documented above.
-The pre-landfall sensitivity reference table has unresolved event-input
-provenance; see RUNNING before comparing it with new calculations.
+Pre-landfall track truncation uses record-specific crossing criteria described
+in RUNNING.
 
 ## Citation and licence
 

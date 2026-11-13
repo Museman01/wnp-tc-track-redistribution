@@ -19,3 +19,4 @@ cartopy==0.25.0
 scikit-fuzzy==0.5.0
 joblib==1.5.3
 threadpoolctl>=3
+pypdf==6.21.4

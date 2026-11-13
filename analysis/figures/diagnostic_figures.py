@@ -38,7 +38,7 @@ CANVASES={
 
     'FigS14_absolute_passage_recurvature':(3184,1018),
 
-    'FigS15_bam_baseline_skill':(3632,1294),
+    'FigS15_bam_baseline_skill':(3632,1560),
 
     'FigS16_steering_layer_regressions':(3332,2269),
 
@@ -60,9 +60,7 @@ def panel(ax,letter,title=''):
 
     ax.text(.015,.98,letter,transform=ax.transAxes,ha='left',va='top',
 
-            fontsize=12.5,fontweight='bold',zorder=12,
-
-            bbox=dict(facecolor='white',edgecolor='none',alpha=.85,pad=.6))
+            fontsize=12.5,fontweight='bold',zorder=12)
 
     if title:ax.set_title(title,pad=7)
 
@@ -83,6 +81,11 @@ def coast(ax,extent=(100,180,0,40)):
     # Degree-labelled ticks as in the main figures and the other SI maps.
 
     geo_ticks(ax,list(range(int(extent[0]),int(extent[1])+1,20)),list(range(int(extent[2]),int(extent[3])+1,10)))
+
+def enlarge(fig,scale):
+    # Larger lettering for figures reduced to page width.
+    for t in fig.findobj(match=matplotlib.text.Text):
+        if t.get_visible() and t.get_fontsize()>0:t.set_fontsize(t.get_fontsize()*scale)
 
 def save(fig,name,output_dir=None):
     folder=Path(output_dir) if output_dir is not None else FIGURE_DIR
@@ -106,7 +109,7 @@ def absolute():
 
             ax.bar(x+(k-.5)*.34,v,width=.32,color=c,label='1966–1995' if k==0 else '1996–2025')
 
-        ax.set_xticks(x,[LABEL[k] for k in agencies]);ax.set_ylabel('Tropical-storm track points per year');panel(ax,letter,title)
+        ax.set_xticks(x,[LABEL[k] for k in agencies]);ax.set_ylabel('Track points per year');panel(ax,letter)
 
     for k,(p,c) in enumerate([('early',EARLY),('late',LATE)]):
 
@@ -114,13 +117,15 @@ def absolute():
 
         axs[2].bar(x+(k-.5)*.34,v,width=.32,color=c)
 
-    axs[2].set_xticks(x,[LABEL[k] for k in agencies]);axs[2].set_ylabel('Recurving storms per year');panel(axs[2],'c','Recurving storms')
+    axs[2].set_xticks(x,[LABEL[k] for k in agencies]);axs[2].set_ylabel('Recurving storms per year');panel(axs[2],'c')
+
+    for ax in axs:ax.set_ylim(top=ax.get_ylim()[1]*1.12)   # headroom for the panel letters
 
     handles,labels=axs[0].get_legend_handles_labels()
 
     fig.legend(handles,labels,loc='outside lower center',ncol=2,frameon=False)
 
-    save(fig,'FigS14_absolute_passage_recurvature')
+    enlarge(fig,1.3);save(fig,'FigS14_absolute_passage_recurvature')
 
 def bam():
 
@@ -134,11 +139,11 @@ def bam():
 
     fig,axs=plt.subplots(2,3,figsize=canvas('FigS15_bam_baseline_skill'))
 
-    fig.subplots_adjust(left=.045,right=.985,bottom=.22,top=.90,wspace=.18,hspace=.24)
+    fig.subplots_adjust(left=.06,right=.985,bottom=.27,top=.97,wspace=.06,hspace=.20)
 
     for row,p in enumerate(['1966–1995','1996–2025']):
 
-        for col,(field,title) in enumerate([(obs[row],'Observed'),(sim[row],'Beta-advection model'),(sim[row]-obs[row],'Model minus observation')]):
+        for col,(field,title) in enumerate([(obs[row],'Observed'),(sim[row],'Model'),(sim[row]-obs[row],'Model − observed')]):
 
             if col<2:im=axs[row,col].imshow(field*100,origin='lower',extent=[100,180,0,40],cmap='Blues',vmin=0,vmax=max(o.max() for o in obs+sim)*100,aspect='auto')
 
@@ -148,13 +153,8 @@ def bam():
 
                 im=axs[row,col].imshow(field*100,origin='lower',extent=[100,180,0,40],cmap='RdBu_r',vmin=-lim,vmax=lim,aspect='auto')
 
-            coast(axs[row,col]);panel(axs[row,col],chr(97+row*3+col),title if row==0 else '')
+            coast(axs[row,col]);panel(axs[row,col],chr(97+row*3+col));axs[row,col].tick_params(labelbottom=row==1,labelleft=col==0)
 
-            axs[row,col].text(.97,.98,p,transform=axs[row,col].transAxes,
-
-                ha='right',va='top',fontsize=10.5,zorder=12,
-
-                bbox=dict(facecolor='white',edgecolor='none',alpha=.9,pad=1))
 
             if col==1:dens=im
 
@@ -162,11 +162,12 @@ def bam():
 
     # One colour bar for the density panels and one for the differences.
 
-    fig.colorbar(dens,cax=fig.add_axes([.075,.105,.51,.025]),orientation='horizontal',label='Relative track composition (%)')
+    fig.canvas.draw();p0,p1,p2=(axs[1,k].get_position() for k in range(3))
+    fig.colorbar(dens,cax=fig.add_axes([p0.x0,.10,p1.x1-p0.x0,.03]),orientation='horizontal',label='Relative track composition (%)')
 
-    fig.colorbar(diff,cax=fig.add_axes([.715,.105,.24,.025]),orientation='horizontal',label='Difference (percentage points)')
+    cb=fig.colorbar(diff,cax=fig.add_axes([p2.x0,.10,p2.width,.03]),orientation='horizontal',label='Difference (percentage points)');cb.set_ticks([-.5,0,.5])
 
-    save(fig,'FigS15_bam_baseline_skill')
+    enlarge(fig,1.35);save(fig,'FigS15_bam_baseline_skill')
 
 def steering(output_dir=None,reference_vector_degrees=9.0):
 
@@ -174,7 +175,7 @@ def steering(output_dir=None,reference_vector_degrees=9.0):
 
     fig,axs=plt.subplots(2,2,figsize=canvas('FigS16_steering_layer_regressions'))
 
-    fig.subplots_adjust(left=.06,right=.84,bottom=.065,top=.94,wspace=.17,hspace=.19)
+    fig.subplots_adjust(left=.07,right=.84,bottom=.065,top=.98,wspace=.17,hspace=.12)
 
     vmax=max(abs(a[f'{layer}_{scale}_z_eddy_beta']).max() for layer in ['300','500'] for scale in ['raw','detrended'])
 
@@ -188,11 +189,11 @@ def steering(output_dir=None,reference_vector_degrees=9.0):
 
             q=ax.quiver(X[::2,::2],Y[::2,::2],a[f'{layer}_{scale}_u_beta'][::2,::2],a[f'{layer}_{scale}_v_beta'][::2,::2],scale=1/reference_vector_degrees,scale_units='x',color='#202020',width=.0033)
 
-            coast(ax,(80,180,0,65));panel(ax,chr(97+row*2+col),f'850–{layer} hPa, {scale}')
+            coast(ax,(80,180,0,65));panel(ax,chr(97+row*2+col))
 
-    fig.colorbar(im,cax=fig.add_axes([.88,.15,.018,.70]),label='Regional-background-adjusted\n500-hPa height (m per index SD)')
+    fig.colorbar(im,cax=fig.add_axes([.88,.15,.018,.70]),label='Regression (m per index SD)')
 
-    save(fig,'FigS16_steering_layer_regressions',output_dir=output_dir)
+    enlarge(fig,1.3);save(fig,'FigS16_steering_layer_regressions',output_dir=output_dir)
 
 def evidence():
     target=RESULT_DIR/'absolute_track_point_change.npz'
@@ -230,9 +231,9 @@ def d26():
 
             ax.plot([l,h],[k,k],color='#365E8D',lw=1.4);ax.plot(value,k,'o',color='#365E8D')
 
-        ax.axvline(0,color='.5',lw=.7);ax.set_yticks(range(4),labels);ax.invert_yaxis();ax.set_xlabel(f'1996–2025 minus 1966–1995 ({unit})');panel(ax,'ab'[0 if var=='D26' else 1],var.replace('_same_support',''))
+        ax.axvline(0,color='.5',lw=.7);ax.set_yticks(range(4),labels);ax.invert_yaxis();ax.set_xlabel(f'Change ({unit})');panel(ax,'ab'[0 if var=='D26' else 1])
 
-    save(fig,'FigS17_d26_parallel_exposure')
+    enlarge(fig,1.35);save(fig,'FigS17_d26_parallel_exposure')
 
 if __name__=='__main__':
 

@@ -68,19 +68,18 @@ def main(stem):
 
     cax=fig.add_axes([92.88/W,1-(mtop+mh+44)/H,(372.24-92.88)/W,10.8/H])
 
-    cb=fig.colorbar(m,cax=cax,orientation='horizontal');cb.set_label('LMI-location density',fontsize=10.8);cax.tick_params(labelsize=9.4)
+    cb=fig.colorbar(m,cax=cax,orientation='horizontal');cb.set_label('Storms per cell',fontsize=10.8);cax.tick_params(labelsize=9.4)
 
     bx=fig.add_axes([469.65/W,1-(mtop+mh)/H,(597.8-469.65)/W,mh/H])
 
     bx.plot(bins.mean_lmi_kt,bins.bin_center_deg,color='#4C72B0',lw=1.45,marker='o',ms=4.5)
 
-    for _,r in bins.iterrows():bx.text(r.mean_lmi_kt+2.2,r.bin_center_deg,f'n={int(r.n_storms)}',va='center',fontsize=10)
 
     bx.set_xlim(*xlim);bx.set_ylim(0,40);bx.set_yticks(range(0,45,5));bx.set_xticks([50,75,100])
 
-    bx.xaxis.tick_top();bx.xaxis.set_label_position('top');bx.set_xlabel('Mean LMI (kt)',fontsize=10.8);bx.set_ylabel('Genesis-latitude bin (°N)',fontsize=10.8)
+    bx.set_xlabel('Mean LMI (kt)',fontsize=10.8);bx.set_ylabel('Genesis-latitude bin (°N)',fontsize=10.8)
 
-    for s in ['right','bottom']:bx.spines[s].set_visible(False)
+    for s in ['right','top']:bx.spines[s].set_visible(False)
 
     bx.tick_params(labelsize=9.4,width=0.8)
 

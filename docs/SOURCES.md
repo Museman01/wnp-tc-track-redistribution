@@ -10,7 +10,7 @@
   (2021). *ORAS5 global ocean reanalysis monthly data from 1958 to present*
   [Data set]. ECMWF. https://doi.org/10.24381/cds.67e8eeb7
   Access: https://cds.climate.copernicus.eu/datasets/reanalysis-oras5
-- ONI: https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php
+- ONI: https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/oni/v5/
 - PDO: https://www.ncei.noaa.gov/access/monitoring/pdo/
 - GSHHG 2.3.7: https://doi.org/10.5281/zenodo.7007502
 - Maps-For-Free relief: https://maps-for-free.com/

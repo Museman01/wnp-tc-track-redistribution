@@ -191,7 +191,7 @@ def draw(variant='overlay',out=None):
     cb.solids.set_alpha(ALPHA);cb.outline.set_linewidth(0.5)
     cax.tick_params(labelsize=9.0,length=1.8,width=0.5,pad=1.2)
     cb.ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v,_:f'{v:g}'.replace('-','−')))
-    cax.set_xlabel('Difference in mean annual track-point count\nper 2.5° × 2.5° grid cell\n1996–2025 minus 1966–1995',fontsize=9.0,labelpad=2.5,linespacing=1.2)
+    cax.set_xlabel('Change in annual track points per cell',fontsize=9.0,labelpad=2.5,linespacing=1.2)
     ax.text(0.012,0.985,'a',transform=ax.transAxes,ha='left',va='top',fontsize=13,fontweight='bold',zorder=8)
 
     # ---- (b) shared result, statistical analyses, interpretation, untested processes, and expressions
