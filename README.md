@@ -1,6 +1,6 @@
 # Western North Pacific tropical cyclone track redistribution
 
-Software version: **2.0.2**. Data archive: https://doi.org/10.5281/zenodo.24188084.
+Software version: **2.1.0a**.
 
 Analysis code and supporting data for *Life-Cycle Redistribution of Western
 North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude:
@@ -8,7 +8,8 @@ Cross-Agency Evidence From 1966–2025*.
 
 The study compares USA, JMA, CMA and HKO tropical cyclone records, primarily
 1966–1995 versus 1996–2025, over 100–180°E and 0–40°N. The analyses cover track
-composition, genesis and conditional-track decomposition, landfall latitude,
+composition, genesis and conditional-track decomposition, lifetime maximum
+intensity (LMI) latitude, landfall latitude,
 circulation, recurvature, translation speed, trajectory-model sensitivities,
 and exposure to OHC300 and the 26°C-isotherm depth.
 
@@ -43,14 +44,14 @@ Choose new output locations to retain the distributed results.
 | [SOURCES](docs/SOURCES.md) | Data products, citations, licences and regional selections |
 | [ERA5 inputs](docs/ERA5_INPUTS.md) | External pressure-level and steering inputs |
 | [Circulation analysis](docs/SUBMONTHLY_STEERING.md) | Wind sampling and daily circulation regimes |
-| [Additional diagnostics](docs/ADDITIONAL_DIAGNOSTICS.md) | Storm-level associations and height-gradient definitions |
+| [Additional diagnostics](docs/ADDITIONAL_DIAGNOSTICS.md) | Storm-level associations, height gradients and LMI latitude |
 
 Calculations and figures can start from the supplied processed inputs. Large
 ERA5 pressure-level and six-hourly steering fields require separate acquisition
 for meteorological preprocessing, environmental resampling and trajectory
 integration. Their product selections and input formats are documented above.
-Pre-landfall track truncation uses record-specific crossing criteria described
-in RUNNING.
+RUNNING describes the inputs for the LMI latitude decomposition and figure
+commands, as well as record-specific pre-landfall crossing criteria.
 
 ## Citation and licence
 

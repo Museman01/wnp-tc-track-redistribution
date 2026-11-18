@@ -21,5 +21,4 @@ keywords:
 - IBTrACS
 - ERA5
 - ORAS5
-version: 2.0.2
-doi: 10.5281/zenodo.24188084
+version: "2.1.0a"

@@ -38,3 +38,9 @@ level. The landfall figure uses shaded relief from this field and GSHHG L1
 shorelines. NOAA's embedded terms permit free use and redistribution; the
 original third-party terms remain applicable. A future download has not been
 verified to match the supplied subset byte for byte.
+
+The schematic in Figure 6 uses a second grid-registered ice-surface subset
+from the same CoastWatch dataset. It covers 100–180°E and 0–50°N at the same
+2-arc-minute spacing. The supplied file is
+`data/derived/etopo1_100-180E_0-50N_2min.nc`:
+https://coastwatch.pfeg.noaa.gov/erddap/griddap/etopo180.nc?altitude%5B(0):2:(50)%5D%5B(100):2:(180)%5D

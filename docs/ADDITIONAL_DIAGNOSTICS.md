@@ -51,8 +51,9 @@ p values, with 4,999 and 9,999 draws respectively and seed 202406.
 
 ## Figures
 
-Figure 6a uses the primary track-point contrast stored in
-`results/tracks/track_point_contrast.npz`. Figure 6b separates the observed spatial
+Figure 6a uses the two-period difference in mean annual tropical-storm-qualified
+track points in the primary record, stored in
+`results/tracks/absolute_track_point_change.npz`. Figure 6b separates the observed spatial
 change, statistical partitions, interpretation, coastal/ocean expressions,
 circulation association and untested processes. Its graphic retains
 74%–80% as the single partition percentage in panel b. Plotting sources are under
@@ -64,3 +65,12 @@ circulation association and untested processes. Its graphic retains
 contrast with its full annual-normalized track-point contrast. Spatial correlation
 and projection onto the full contrast use the included spatial arrays. Run
 `python -B -m analysis.tracks.field_comparison --output field_comparison.csv`.
+
+## Latitude at lifetime maximum intensity
+
+Genesis latitude and the subsequent change in latitude are reported for the
+primary record and USA, JMA, CMA and HKO. The calculation uses
+`results/ocean/ohc300/tracks_agency_definitions.csv.gz` and the HKO reports
+identified in SOURCES. The input definition, periods, treatment of equal
+maximum winds and command are in RUNNING. The result is
+`results/tracks/lmi_genesis_displacement_split.csv`.

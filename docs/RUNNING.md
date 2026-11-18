@@ -139,15 +139,42 @@ separately; MANIFEST.csv identifies all distributed files.
 
 ## Manuscript figures and index summaries
 
-Figures 1–5 use the structured track, circulation and landfall results. Figure 5
-also reads `data/derived/etopo1_99-146E_4-46N_2min.nc`; selection and attribution
-are in `docs/SOURCES.md`. The required scipy, xarray and geopandas packages are
-listed in requirements.txt.
+Figures 1–5 use the structured track, circulation and landfall results.
+Figures 5 and 6 use the regional ETOPO1 subsets described in SOURCES. Figure 6
+also reads the absolute track-point difference field and GSHHG shorelines.
 
 ```bash
-python -B -m analysis diagnostics --execute --only si --output-root analysis_output/diagnostic_figures
-python -B -m analysis.figures.synthesis_figure --execute draw overlay analysis_output/Fig06_outlook_schematic
+python -B -m analysis figures --execute 1 2 3 4 5 --output-dir analysis_output/figures
+python -B -m analysis.figures.synthesis_figure --execute --output analysis_output/Fig06_outlook_schematic
 ```
+
+Figures S1, S5 and S11 are drawn from the supplied vector inputs in
+`source/figure_templates/`. The S1 input supplies the study-region geography
+and map labels, S5 the basin activity time series, and S11 the ocean heat
+content contributions. For S1, draw the labels before aligning the markers.
+For the S5 year labels, the renderer uses Arial or Liberation Sans.
+
+```bash
+python -B -m analysis.figures.study_region_typography --input source/figure_templates/FigS01_study_region.pdf --output analysis_output/FigS01_labels
+python -B -m analysis.figures.study_region_marker_alignment --input analysis_output/FigS01_labels.pdf --output analysis_output/FigS01_study_region
+python -B -m analysis.figures.shared_time_axis --input source/figure_templates/FigS05_activity_timeseries.pdf --output analysis_output/FigS05_activity_timeseries
+python -B -m analysis.figures.font_scale_pdf --input source/figure_templates/FigS11_ohc_latitude_contributions.pdf --output analysis_output/FigS11_ohc_latitude_contributions
+```
+
+The following first command draws Figures S2, S3, S4, S7, S8, S10, S12 and S13
+in that order. The two diagnostic output directories keep the S14–S16 and
+D26 (S17) outputs separate.
+
+```bash
+python -B -m analysis.figures.si_four_agency_figures S01 S02 S03 S06 S07 S09 S12 S13 --execute --output-dir analysis_output/si_agencies
+python -B -m analysis.figures.lmi_genesis_figure --execute --output analysis_output/FigS06_lmi_location
+python -B -m analysis.figures.subtropical_high_figure --output analysis_output/FigS09_wnpsh_fixed_contour_metrics
+python -B -m analysis diagnostics --execute --only si --output-root analysis_output/diagnostic_figures
+python -B -m analysis diagnostics --execute --only d26 --output-root analysis_output/d26_figure
+```
+
+PNG resolution is 300 dpi for Figure 5 and 600 dpi for the other distributed
+figures. All figures are also available as PDF.
 
 The primary/USA/JMA/CMA index summary and `index_hko_summary.csv` are stored in
 `data/reference/environment_validation/supplemental_validation/results/`.
@@ -156,6 +183,27 @@ Use the `track_point` rows and the `late_minus_early_oos` and
 The `tracks core` command with a new `--output-root` writes the HKO summary to
 `reference_index/` within that output root and the other core tables to `core/`.
 
+
+## LMI latitude decomposition
+
+The decomposition expresses latitude at lifetime maximum intensity (LMI)
+as genesis latitude plus the change in latitude from genesis to LMI. Use
+the supplied agency track table for the primary, USA, JMA and CMA records.
+HKO is read from the included IBTrACS observations and the 2025 HKO
+post-analysis reports. The spatial domain is 100–180°E and 0–40°N.
+The analysis averages storms within each year. It reports the difference
+between 1966–1995 and 1996–2025, and the linear trends for 1966–2016 and
+1966–2025. If more than one observation has the maximum wind speed, the
+calculation uses the earliest, latest and mean latitude in turn.
+
+```bash
+python -B -m analysis.tracks.lmi_genesis_displacement_split results/ocean/ohc300/tracks_agency_definitions.csv.gz lmi_split.csv
+```
+
+The supplied calculation is in `results/tracks/lmi_genesis_displacement_split.csv`.
+`d_lmi_lat`, `d_genesis_lat` and `d_displacement` are changes in degrees for
+the period comparison and degrees per decade for the trends.
+`displacement_share` is the displacement change divided by the LMI latitude change.
 
 ## Pathway sensitivity outputs
 

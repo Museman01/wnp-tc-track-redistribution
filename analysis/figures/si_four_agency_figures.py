@@ -1,7 +1,9 @@
 'Si four agency figures.'
 from __future__ import annotations
 
+from analysis.figures.figure_raster import render_png
 import sys
+from analysis.figures.si_page_type import fit_si_type
 from pathlib import Path
 
 import numpy as np,pandas as pd
@@ -25,7 +27,7 @@ from analysis.figures.main_figures import COLORS, DISPLAY, AG4, scale_typography
 R=lambda n:pd.read_csv(output_path('results/agency_comparison/'+n))
 
 OUTPUT=None
-NUM={'S01':1,'S02':2,'S03':3,'S06':6,'S07':7,'S09':9,'S11':11,'S12':12,'S13':13}
+NUM={'S01':2,'S02':3,'S03':4,'S06':7,'S07':8,'S09':10,'S11':11,'S12':12,'S13':13}
 
 
 
@@ -55,13 +57,16 @@ def save(fig,stem,key,title,scale):
 
     if OUTPUT is None: raise ValueError('Provide an output directory')
     if any((OUTPUT / (stem+ext)).exists() for ext in ('.png','.pdf')): raise FileExistsError('Refusing to overwrite an existing figure')
-    scale_typography(fig,scale)
+    scale_typography(fig,max(scale * 1.10, 1.43))
+    fit_si_type(fig)
 
     meta={'Title':title,'Subject':f'Journal of Geophysical Research: Atmospheres Supporting Information Figure S{NUM[key]}','Creator':'Matplotlib'}
 
-    fig.savefig(OUTPUT / f'{stem}.png',dpi=300,bbox_inches='tight')
 
-    fig.savefig(OUTPUT / f'{stem}.pdf',bbox_inches='tight',metadata=meta);plt.close(fig);print('Figure',stem,flush=True)
+
+    fig.savefig(OUTPUT / f'{stem}.pdf',bbox_inches='tight',metadata=meta)
+    render_png(OUTPUT / f'{stem}.pdf')
+    plt.close(fig);print('Figure',stem,flush=True)
 
 
 
@@ -97,9 +102,15 @@ def S01():
 
     for ax in axes:open_axis(ax)
 
+    axes[0].spines['top'].set_visible(True)
+    axes[0].spines['bottom'].set_visible(False)
+    axes[0].tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+    axes[1].tick_params(axis='x', top=False, bottom=False, labelbottom=False)
+    axes[1].spines['bottom'].set_visible(False)
+    fig.set_constrained_layout_pads(h_pad=0.01, hspace=0.015)
     letters(axes)
 
-    save(fig,'FigS01_agency_coverage_1945_2025','S01','Native-record coverage',1.10)
+    save(fig,'FigS02_agency_coverage_1945_2025','S01','Native-record coverage',1.10)
 
 
 
@@ -109,7 +120,7 @@ def S02():
 
     p=R('coverage/projection_1945_2025_four_agency.csv')
 
-    fig,ax=plt.subplots(figsize=(8.2,6.8),constrained_layout=True)
+    fig,ax=plt.subplots(figsize=(8.2,4.73),constrained_layout=True)
 
     for a in AG4:
 
@@ -121,7 +132,7 @@ def S02():
 
     agency_legend(ax,loc='upper left');open_axis(ax)
 
-    save(fig,'FigS02_early_year_projection','S02','Early-year projection',1.10)
+    save(fig,'FigS03_early_year_projection','S02','Early-year projection',1.10)
 
 
 
@@ -155,7 +166,7 @@ def S03():
 
     letters(axes)
 
-    save(fig,'FigS03_start_year_sensitivity','S03','Start-year sensitivity',1.20)
+    save(fig,'FigS04_start_year_sensitivity','S03','Start-year sensitivity',1.20)
 
 
 
@@ -187,7 +198,8 @@ def S06():
 
     axes[1].set(xticks=base,xticklabels=labels,ylabel='Block-permutation p');axes[1].axhline(.05,color='0.45',ls=':',lw=1);axes[1].set_ylim(0,.055)
 
-    for ax in axes:ax.tick_params(axis='x',rotation=25)
+    for ax in axes:
+        plt.setp(ax.get_xticklabels(),rotation=42,ha='right',rotation_mode='anchor')
 
     open_axis(axes[0]);open_axis(axes[1],right=True)
 
@@ -195,7 +207,7 @@ def S06():
 
     letters(axes)
 
-    save(fig,'FigS06_path_definition_sensitivity','S06','Path-definition sensitivity',1.22)
+    save(fig,'FigS07_path_definition_sensitivity','S06','Path-definition sensitivity',1.22)
 
 
 
@@ -217,7 +229,7 @@ def S07():
 
     open_axis(axes[0]);open_axis(axes[1],right=True);letters(axes)
 
-    save(fig,'FigS07_climate_mode_adjustment','S07','Climate-mode adjustment',1.20)
+    save(fig,'FigS08_climate_mode_adjustment','S07','Climate-mode adjustment',1.20)
 
 
 
@@ -227,7 +239,7 @@ def S09():
 
     an=R('speed/speed_decomposition_annual_four_agency.csv');tr=R('speed/speed_decomposition_trends_four_agency.csv')
 
-    fig,axes=plt.subplots(2,2,figsize=(11,7.6),constrained_layout=True)
+    fig,axes=plt.subplots(2,2,figsize=(11,7.6),constrained_layout=False)
 
     tot=an[an.speed_type.eq('total')]
 
@@ -235,7 +247,7 @@ def S09():
 
         g=tot[tot.agency.eq(a)];axes[0,0].plot(g.season,g.basin_speed,color=COLORS[a],lw=1.2,label=DISPLAY[a])
 
-    axes[0,0].set(ylabel='Basin-mean speed (km h$^{-1}$)');agency_legend(axes[0,0],ncol=4,loc='lower center',bbox_to_anchor=(0.5,1.0))
+    axes[0,0].set(ylabel='Basin-mean speed\n(km h$^{-1}$)');agency_legend(axes[0,0],ncol=4,loc='lower center',bbox_to_anchor=(0.44,1.32))
 
     terms=[('track_shift','Track-density term','#4C78A8'),('regional_speed','Regional-speed term','#E45756'),('covariance','Covariance term','#72B7B2')]
 
@@ -243,7 +255,7 @@ def S09():
 
     for v,l,c in terms:axes[0,1].plot(j.season,j[v],color=c,lw=1.2,label=l)
 
-    axes[0,1].axhline(0,color='0.45',lw=0.8);axes[0,1].set(ylabel='Speed anomaly (km h$^{-1}$)');axes[0,1].legend(frameon=False,ncol=3,loc='lower center',bbox_to_anchor=(0.5,1.0),handlelength=1.6,columnspacing=1.0)   # also the key for panel c
+    axes[0,1].axhline(0,color='0.45',lw=0.8);axes[0,1].set(ylabel='Speed anomaly\n(km h$^{-1}$)');axes[0,1].legend(frameon=False,ncol=3,loc='lower center',bbox_to_anchor=(0.56,1.16),handlelength=1.6,columnspacing=0.8)   # also the key for panel c
 
     comp=tr[tr.speed_type.eq('total')&tr.dataset.isin([f'{a}_feng' for a in AG4])]
 
@@ -259,7 +271,7 @@ def S09():
 
             if q<0.05:axes[1,0].text(x[i]+(k-1)*w,val+0.15,'*',ha='center',va='bottom',fontsize=12)
 
-    axes[1,0].axhline(0,color='0.4',lw=0.8);axes[1,0].set(xticks=x,xticklabels=[DISPLAY[a] for a in AG4],ylabel='Change (% of mean basin speed)')
+    axes[1,0].axhline(0,color='0.4',lw=0.8);axes[1,0].set(xticks=x,xticklabels=[DISPLAY[a] for a in AG4],ylabel='Change (% of mean\nbasin speed)')
 
     axes[1,0].set_ylim(top=9.0)
 
@@ -271,15 +283,23 @@ def S09():
 
     axes[1,1].plot(ex.season,ex.speed,color='#222222',lw=1.2,label='Storm-equal metric')
 
-    axes[1,1].set(xlabel='Year',ylabel='Basin-mean speed (km h$^{-1}$)');axes[1,1].set_ylim(top=axes[1,1].get_ylim()[1]+0.30*np.ptp(axes[1,1].get_ylim()));axes[1,1].legend(frameon=False,ncol=1,loc='upper right')
+    axes[1,1].set(xlabel='Year',ylabel='Basin-mean speed\n(km h$^{-1}$)');axes[1,1].set_ylim(top=axes[1,1].get_ylim()[1]+0.54*np.ptp(axes[1,1].get_ylim()))
+    axes[1,1].set_yticks([16,18,20,22,24,26])
+    axes[1,1].legend(frameon=False,ncol=1,loc='upper right',bbox_to_anchor=(1,.875),
+                     handlelength=1.25,handletextpad=0.5,borderaxespad=0.5)
 
     for ax in axes[:,0]:open_axis(ax)
 
     for ax in axes[:,1]:open_axis(ax,right=True)
 
+    for ax in axes[0]:
+        ax.spines['top'].set_visible(True)
+        ax.spines['bottom'].set_visible(False)
+        ax.tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+    fig.subplots_adjust(left=.075,right=.92,bottom=.10,top=.84,wspace=.06,hspace=.16)
     letters(axes)
 
-    save(fig,'FigS09_translation_speed_decomposition','S09','Translation-speed decomposition',1.15)
+    save(fig,'FigS10_translation_speed_decomposition','S09','Translation-speed decomposition',1.15)
 
 
 
@@ -343,9 +363,9 @@ def S12():
 
     c=R('sensitivity/cutpoint_four_agency.csv');c=c[c.scheme.eq('full_record')]
 
-    mets=[('path_total_variation','Total variation distance'),('first_landfall_latitude_difference','Latitude change (°)'),('north_share_difference','Share change (percentage points)'),('lmi_latitude_difference','Latitude change (°)')]
+    mets=[('path_total_variation','Total variation\ndistance'),('first_landfall_latitude_difference','Latitude change (°)'),('north_share_difference','Share change\n(percentage points)'),('lmi_latitude_difference','Latitude change (°)')]
 
-    fig,axes=plt.subplots(4,2,figsize=(9.2,13.2),sharex=True,constrained_layout=True)
+    fig,axes=plt.subplots(4,2,figsize=(9.2,9.20),sharex=True,constrained_layout=True)
 
     for r,(m,lab) in enumerate(mets):
 
@@ -357,18 +377,27 @@ def S12():
 
             axes[r,1].plot(g.cutpoint,g.p_value,'-o',color=COLORS[a],ms=3.5,lw=1.2)
 
-        axes[r,0].set_ylabel(lab);axes[r,1].set_ylabel('Block-permutation p');axes[r,1].axhline(0.05,color='0.45',ls=':',lw=1)
+        axes[r,0].set_ylabel(lab);axes[r,1].axhline(0.05,color='0.45',ls=':',lw=1)
 
         for ax in axes[r]:ax.axvline(1996,color='0.4',ls='--',lw=0.9)
 
         for ax in axes[r]:lo_,hi_=ax.get_ylim();ax.set_ylim(lo_,hi_+0.12*(hi_-lo_))   # headroom for the panel letters
         open_axis(axes[r,0]);open_axis(axes[r,1],right=True)
 
-    axes[0,0].legend(frameon=False,loc='upper left',bbox_to_anchor=(0.08,1.0))
+    axes[0,0].legend(frameon=False,loc='upper left',bbox_to_anchor=(0.04,1.0),ncol=2,handlelength=1.1,columnspacing=0.6)
 
 
     for ax in axes[-1]:ax.set_xlabel('First year of late period')
 
+    for ax in axes[0]:
+        ax.spines['top'].set_visible(True)
+        ax.spines['bottom'].set_visible(False)
+        ax.tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+    for ax in axes[1:3].ravel():
+        ax.tick_params(axis='x', top=False, bottom=False, labelbottom=False)
+        ax.spines['bottom'].set_visible(False)
+    fig.set_constrained_layout_pads(h_pad=0.01, hspace=0.015)
+    fig.text(1.0,0.5,'Block-permutation p',rotation=90,ha='left',va='center',fontsize=matplotlib.rcParams['axes.labelsize'])
     letters(np.r_[axes[:,0],axes[:,1]])
 
     save(fig,'FigS12_cutpoint_sensitivity','S12','Moving-cutpoint sensitivity',1.40)
@@ -381,7 +410,7 @@ def S13():
 
     t=R('sensitivity/coast_grouping_four_agency.csv').query("taiwan_rule == 'taiwan_north' and denominator == 'named_only'")
 
-    fig,axes=plt.subplots(3,1,figsize=(8.6,9.8),sharex=True,constrained_layout=True)
+    fig,axes=plt.subplots(3,1,figsize=(8.6,6.8),sharex=True,constrained_layout=True)
 
     for ax,rule in zip(axes,['all_events','first_any','first_named']):
 
@@ -401,6 +430,12 @@ def S13():
 
     axes[-1].set(xticks=[25,50,75,100],xlabel='Coastline-segment threshold (km)')
 
+    axes[0].spines['top'].set_visible(True)
+    axes[0].spines['bottom'].set_visible(False)
+    axes[0].tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+    axes[1].tick_params(axis='x', top=False, bottom=False, labelbottom=False)
+    axes[1].spines['bottom'].set_visible(False)
+    fig.set_constrained_layout_pads(h_pad=0.01, hspace=0.015)
     agency_legend(axes[0],ncol=4,loc='upper right');letters(axes)
 
     save(fig,'FigS13_exclusive_coast_threshold_sensitivity','S13','Coast-threshold sensitivity',1.12)
@@ -419,4 +454,4 @@ if __name__=='__main__':
     if not OUTPUT.is_relative_to(PROJECT.resolve()): parser.error('Output directory must remain within the project')
     if OUTPUT.exists(): parser.error('Provide a new output directory')
     OUTPUT.mkdir(parents=True)
-    for key in (args.figures or list(NUM)): globals()[key]()
+    for key in (args.figures or ('S01','S02','S03','S06','S07','S09','S12','S13')): globals()[key]()

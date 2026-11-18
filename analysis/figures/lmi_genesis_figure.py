@@ -1,6 +1,7 @@
 """Plot LMI location and genesis-latitude statistics from structured inputs."""
 
 from __future__ import annotations
+from analysis.figures.si_page_type import fit_si_type
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
@@ -42,7 +43,7 @@ def main(stem):
 
     plt.rcParams.update({'font.family':'sans-serif','font.sans-serif':[mf.FONT,'DejaVu Sans'],'pdf.fonttype':42})
 
-    W=627.7;H=300.0
+    W=609.05;H=300.0
 
     fig=plt.figure(figsize=(W/72,H/72))
 
@@ -66,11 +67,11 @@ def main(stem):
 
     ax.text(0.012,0.975,'a',transform=ax.transAxes,ha='left',va='top',fontsize=11.5,fontweight='bold',zorder=6)
 
-    cax=fig.add_axes([92.88/W,1-(mtop+mh+44)/H,(372.24-92.88)/W,10.8/H])
+    cax=fig.add_axes([92.88/W,1-(mtop+mh+34)/H,(372.24-92.88)/W,10.8/H])
 
     cb=fig.colorbar(m,cax=cax,orientation='horizontal');cb.set_label('Storms per cell',fontsize=10.8);cax.tick_params(labelsize=9.4)
 
-    bx=fig.add_axes([469.65/W,1-(mtop+mh)/H,(597.8-469.65)/W,mh/H])
+    bx=fig.add_axes([451.0/W,1-(mtop+mh)/H,(597.8-469.65)/W,mh/H])
 
     bx.plot(bins.mean_lmi_kt,bins.bin_center_deg,color='#4C72B0',lw=1.45,marker='o',ms=4.5)
 
@@ -79,14 +80,18 @@ def main(stem):
 
     bx.set_xlabel('Mean LMI (kt)',fontsize=10.8);bx.set_ylabel('Genesis-latitude bin (°N)',fontsize=10.8)
 
-    for s in ['right','top']:bx.spines[s].set_visible(False)
+    bx.yaxis.tick_right(); bx.yaxis.set_label_position('right')
+    bx.spines['left'].set_visible(False); bx.spines['right'].set_visible(True); bx.spines['top'].set_visible(False)
 
     bx.tick_params(labelsize=9.4,width=0.8)
 
     bx.text(0.97,0.975,'b',transform=bx.transAxes,ha='right',va='top',fontsize=11.5,fontweight='bold')
 
-    for t in fig.findobj(match=matplotlib.text.Text):t.set_fontfamily(mf.FONT)
+    for t in fig.findobj(match=matplotlib.text.Text):
+        t.set_fontfamily(mf.FONT)
+        if t.get_visible() and t.get_fontsize()>0: t.set_fontsize(t.get_fontsize()*1.10)
 
+    fit_si_type(fig, pad=0.08)
     fig.savefig(output_path(stem+'.png'),dpi=600,bbox_inches='tight',pad_inches=0.08)
 
     fig.savefig(output_path(stem+'.pdf'),bbox_inches='tight',pad_inches=0.08,metadata={'Creator':'Matplotlib'})

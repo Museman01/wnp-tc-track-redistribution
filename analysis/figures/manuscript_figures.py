@@ -1,5 +1,6 @@
 """Render the five data figures used in the manuscript."""
 from __future__ import annotations
+from analysis.figures.figure_raster import render_png, resize_terrain
 import sys
 from pathlib import Path
 import numpy as np, pandas as pd
@@ -11,7 +12,7 @@ from matplotlib.colors import LinearSegmentedColormap
 TEAL_CORAL = LinearSegmentedColormap.from_list('teal_coral', ['#1B6F73', '#7FBFBE', '#FFFFFF', '#F2A68C', '#B5452F'])
 from matplotlib.lines import Line2D
 from matplotlib.patches import Rectangle
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 from core.paths import PROJECT, output_path
 from analysis.figures.main_figures import (COLORS, DISPLAY, AG3, AG4, ZA, ZV, H, add_coast, format_geo_axes,
                                            open_panel_axis, scale_typography)
@@ -23,7 +24,7 @@ EARLY, LATE = PERIODS['early'][0], PERIODS['late'][0]
 
 
 def letter(ax, s):
-    ax.text(0.015, 0.985, s, transform=ax.transAxes, va='top', ha='left', fontsize=12, fontweight='bold', zorder=12)
+    ax.text(0.015, 0.985, s, transform=ax.transAxes, va='top', ha='left', fontsize=11.2, fontweight='bold', zorder=12)
 
 
 def geo(ax, extent=(100, 0, 180, 40), last=True):
@@ -32,13 +33,38 @@ def geo(ax, extent=(100, 0, 180, 40), last=True):
     ax.set_yticks(list(range(int(extent[1]), int(extent[3]) + 1, 10 if extent[3] - extent[1] <= 40 else 20)))
 
 
+def fit_manuscript_type(fig, number):
+    from matplotlib.text import Text
+    fig.canvas.draw()
+    text_artists = [text for text in fig.findobj(match=Text)
+                    if text.get_visible() and text.get_text().strip()]
+    panel_letters = {text for ax in fig.axes for text in ax.texts
+                     if text.get_text() in tuple('abcdef')}
+    titles = {text for ax in fig.axes for text in (ax.xaxis.label, ax.yaxis.label)}
+    size_in_manuscript = {
+        text: 12.0 if text in panel_letters else 10.8 if text in titles else 9.8
+        for text in text_artists}
+    for _ in range(3):
+        bounds = fig.get_tightbbox(fig.canvas.get_renderer()).padded(plt.rcParams['savefig.pad_inches'])
+        width_pt = bounds.width * 72
+        height_limit_pt = 417.6 if number == 5 else 561.6
+        scale = min(468 / width_pt, height_limit_pt / (bounds.height * 72))
+        for text, size in size_in_manuscript.items():
+            text.set_fontsize(size / scale)
+        fig.canvas.draw()
+
+
 def save(fig, stem, number, title, scale=1.0, dpi=300):
     for ext in ('.png', '.pdf'):
         if (OUT / (stem + ext)).exists(): raise FileExistsError(stem)
-    scale_typography(fig, scale)
-    fig.savefig(OUT / f'{stem}.png', dpi=dpi, bbox_inches='tight')
+    scale_typography(fig, scale * 1.10)
+    fit_manuscript_type(fig, number)
     fig.savefig(OUT / f'{stem}.pdf', bbox_inches='tight',
                 metadata={'Title': title, 'Subject': f'Journal of Geophysical Research: Atmospheres Figure {number}', 'Creator': 'Matplotlib'})
+    pdf = OUT / f'{stem}.pdf'
+    if number == 5:
+        resize_terrain(pdf, (1399, 1372), 0.82, 2)
+    render_png(pdf, dpi=300 if number == 5 else 600)
     plt.close(fig); print('Figure', stem, flush=True)
 
 
@@ -49,12 +75,12 @@ def fig1():
     tr = np.load(PROJECT / 'results/tracks/hko_track_fields.npz')
     fig = plt.figure(figsize=(11.6, 7.9))
     gs = fig.add_gridspec(3, 3, width_ratios=[1, 1, 0.035], height_ratios=[0.95, 1, 1], left=0.07, right=0.93,
-                          bottom=0.05, top=0.98, hspace=0.30, wspace=0.10)
+                          bottom=0.05, top=0.98, hspace=0.14, wspace=0.025)
     axa = fig.add_subplot(gs[0, 0]); axb = fig.add_subplot(gs[0, 1])
     for a in AG3:
         p = annual[annual.agency.eq(a)]; axa.plot(p.season, p.n_tc, color=COLORS[a], lw=1.2, label=DISPLAY[a])
     axa.plot(hf.season, hf.n_tc, color=COLORS['HKO'], lw=1.2, label='HKO')
-    axa.set(xlabel='Year', ylabel='TC count'); axa.legend(frameon=False, ncol=4, loc='upper right')
+    axa.set(xlabel='Year', ylabel='TC count'); axa.legend(frameon=False, ncol=4, loc='upper right', columnspacing=0.7, handlelength=1.5)
     axa.set_ylim(top=axa.get_ylim()[1] + 6)
     for a in ['PRIMARY'] + AG3:
         d = idx[(idx.agency == a) & (idx.weighting == 'track_point')].sort_values('year')
@@ -64,14 +90,31 @@ def fig1():
     axb.set(xlabel='Year', ylabel='Leave-one-year-out\nredistribution index'); axb.legend(frameon=False, ncol=3, loc='upper left', bbox_to_anchor=(0.05, 1.0))
     axb.set_ylim(top=axb.get_ylim()[1] + 0.25 * np.ptp(axb.get_ylim()))
     open_panel_axis(axa); open_panel_axis(axb, right=True)
+    axb.spines['right'].set_visible(True)
+    for ax in (axa, axb):
+        ax.spines['top'].set_visible(True)
+        ax.spines['bottom'].set_visible(False)
+        ax.xaxis.tick_top()
+        ax.xaxis.set_label_position('top')
+        ax.tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
     lim = max(abs(tr['native_all_' + k]).max() for k in AG4) * 100
     maps = []
     for i, k in enumerate(AG4):
         ax = fig.add_subplot(gs[1 + i // 2, i % 2])
         m = ax.imshow(tr['native_all_' + k] * 100, origin='lower', extent=[100, 180, 0, 40], cmap='RdBu_r', vmin=-lim, vmax=lim, aspect='auto', zorder=1)
         geo(ax, last=bool(i % 2)); maps.append(ax)
-        if i % 2: ax.tick_params(axis='y', labelleft=False)
+        if i % 2:
+            ax.spines['right'].set_visible(True)
+            ax.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
         if i < 2: ax.tick_params(axis='x', labelbottom=False)
+    fig.canvas.draw()
+    for panel in (maps[1], maps[3]):
+        pos = panel.get_position()
+        panel.set_position([pos.x0 - 0.03, pos.y0, pos.width, pos.height])
+    fig.canvas.draw()
+    for series, panel in zip((axa, axb), maps[:2]):
+        pos, ref = series.get_position(), panel.get_position()
+        series.set_position([ref.x0, pos.y0, ref.width, pos.height])
     for ax, s in zip([axa, axb] + maps, 'abcdef'): letter(ax, s)
     fig.canvas.draw()
     top = maps[1].get_position(); bot = maps[3].get_position()
@@ -85,17 +128,19 @@ def fig2():
     f = np.load(PROJECT / 'results/genesis/PRIMARY_fields.npz'); lo, la = f['lon_edges'], f['lat_edges']
     arr = {k: f[f'{k}_field'].reshape(len(la) - 1, len(lo) - 1) * 100 for k in ('genesis', 'propagation')}
     fig = plt.figure(figsize=(11.6, 3.75))
-    gs = fig.add_gridspec(2, 2, height_ratios=[1, 0.06], left=0.06, right=0.985, bottom=0.10, top=0.98, hspace=0.40, wspace=0.07)
+    gs = fig.add_gridspec(2, 2, height_ratios=[1, 0.06], left=0.06, right=0.985, bottom=0.10, top=0.98, hspace=0.40, wspace=0.025)
     axs = [fig.add_subplot(gs[0, 0]), fig.add_subplot(gs[0, 1])]; ms = []
     for ax, k, name, s, cmap in zip(axs, ['genesis', 'propagation'], ['Genesis distribution', 'Conditional track field'], 'ab', ['PuOr_r', 'RdBu_r']):
         v = np.abs(arr[k]).max()
         ms.append(ax.pcolormesh(lo, la, arr[k], cmap=cmap, vmin=-v, vmax=v, shading='flat', zorder=1))
         geo(ax, last=(s == 'b')); letter(ax, s)
-    axs[1].tick_params(axis='y', labelleft=False)
+    axs[1].spines['right'].set_visible(True)
+    axs[1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
     fig.canvas.draw()
     for ax, mm, lab in [(axs[0], ms[0], 'Contribution (percentage points per cell)'), (axs[1], ms[1], 'Contribution (percentage points per cell)')]:
-        p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.1 * p.width, 0.075, 0.8 * p.width, 0.035])
+        p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.1 * p.width, p.y0 - 0.14, 0.8 * p.width, 0.035])
         cb = fig.colorbar(mm, cax=cax, orientation='horizontal', label=lab)
+        cb.locator = MaxNLocator(nbins=5); cb.update_ticks()
         cb.ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f'{v:.2f}'.rstrip('0').rstrip('.').replace('-', '\u2212') if v else '0'))
     save(fig, 'Fig02_genesis_conditional_track_field_terms', 2, 'Genesis-distribution and conditional-track-field terms', 1.70, 320)
 
@@ -107,15 +152,16 @@ def fig3():
     lon, lat = F['longitude'], F['latitude']; X, Y = np.meshgrid(S['longitude'], S['latitude'])
     vmax = max(np.abs(F['raw_z_eddy_beta']).max(), np.abs(F['detrended_z_eddy_beta']).max())
     zlim = float(np.nanmax(abs(S['period_change_z_eddy'])))
-    fig = plt.figure(figsize=(11.6, 7.6))
-    gs = fig.add_gridspec(2, 3, width_ratios=[1, 1, 0.035], left=0.07, right=0.92, bottom=0.05, top=0.98, hspace=0.06, wspace=0.08)
+    fig = plt.figure(figsize=(8.0, 7.6))
+    gs = fig.add_gridspec(2, 3, width_ratios=[1, 1, 0.035], left=0.07, right=0.97, bottom=0.18, top=0.91, hspace=0.12, wspace=0.045)
     ax = [[fig.add_subplot(gs[r, c]) for c in range(2)] for r in range(2)]
     for a_, sc, name, s in [(ax[0][0], 'raw', 'Raw regression', 'a'), (ax[0][1], 'detrended', 'Detrended regression', 'b')]:
         m1 = a_.pcolormesh(lon, lat, F[f'{sc}_z_eddy_beta'], cmap='RdBu_r', vmin=-vmax, vmax=vmax, shading='auto', zorder=1)
         # Reference length (stated in the caption): 1 m s-1 per index SD spans 6 degrees of longitude.
         a_.quiver(lon[::2], lat[::2], F[f'{sc}_u_beta'][::2, ::2], F[f'{sc}_v_beta'][::2, ::2], color='0.15',
                   scale=1 / 6, scale_units='x', width=0.0024, zorder=5)
-        geo(a_, (80, 0, 180, 65), last=(s == 'b')); letter(a_, s)
+        geo(a_, (80, 0, 180, 65), last=(s == 'b'))
+        a_.text(0.015, 0.985, s, transform=a_.transAxes, va='top', ha='left', fontsize=12, fontweight='bold', zorder=12, bbox=dict(facecolor='#E6E4DF', edgecolor='none', pad=0.6))
     # Panel c (zero-wind lines and steering change) on the left; panel d (height change) beside its colour bar.
     d, c = ax[1]
     m2 = c.pcolormesh(S['longitude'], S['latitude'], S['period_change_z_eddy'], cmap='PuOr_r', vmin=-zlim, vmax=zlim, shading='auto', zorder=1)
@@ -126,15 +172,34 @@ def fig3():
     d.quiver(X[::2, ::2], Y[::2, ::2], S['period_change_u300'][::2, ::2], S['period_change_v300'][::2, ::2],
              scale=1 / 7.5, scale_units='x', width=0.0027, color='0.15', zorder=5)
     geo(d, (80, 0, 180, 65), last=False); geo(c, (80, 0, 180, 65))
-    letter(d, 'c'); letter(c, 'd')
-    for a_ in (ax[0][1], c): a_.tick_params(axis='y', labelleft=False)
-    for a_ in ax[0]: a_.tick_params(axis='x', labelbottom=False)
+    for panel, label in ((d,'c'),(c,'d')):
+        panel.text(0.015, 0.985, label, transform=panel.transAxes, va='top', ha='left', fontsize=12, fontweight='bold', zorder=12, bbox=dict(facecolor='#E6E4DF', edgecolor='none', pad=0.6))
+    for a_ in (ax[0][1], c):
+        a_.spines['right'].set_visible(True)
+        a_.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+    ax[0][0].spines['top'].set_visible(True)
+    ax[0][0].tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+    ax[0][1].spines['top'].set_visible(True)
+    ax[0][1].tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+    ax[0][1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+    for a_ in ax[1]:
+        a_.tick_params(axis='x', bottom=False, labelbottom=False)
+    c.spines['bottom'].set_visible(True)
+    c.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+    # Use the same 1.3:1 display frame for the four unchanged geographic domains.
+    for a_ in (*ax[0], *ax[1]):
+        a_.set_aspect((100 / 65) / 1.3, adjustable='box')
     fig.canvas.draw()
-    for row, mm, lab in [(0, m1, 'Regression (m per index SD)'),
-                         (1, m2, 'Change (m)')]:
-        pb = ax[row][1].get_position(); cax = fig.add_axes([pb.x1 + 0.012, pb.y0, 0.014, pb.height])
-        fig.colorbar(mm, cax=cax, label=lab)
-    save(fig, 'Fig03_circulation_regression_and_two_period_change', 3, 'Circulation regressions and two-period circulation change', 1.68)
+    for panel, mm, lab in [(d, m1, 'Regression (m per index SD)'),
+                           (c, m2, 'Change (m)')]:
+        pb = panel.get_position()
+        cax = fig.add_axes([pb.x0 + 0.03 * pb.width, pb.y0 - 0.037, 0.94 * pb.width, 0.018])
+        cb = fig.colorbar(mm, cax=cax, orientation='horizontal', label=lab)
+        if mm is m2:
+            cb.set_ticks([-7.5, 0, 7.5])
+        else:
+            cb.set_ticks([-4, -2, 0, 2, 4])
+    save(fig, 'Fig03_circulation_regression_and_two_period_change', 3, 'Circulation regressions and two-period circulation change', 1.25)
 
 
 # ---------------------------------------------------------------- Figure 4: regime-frequency and within-regime terms
@@ -145,7 +210,7 @@ def fig4():
     lon, lat, comp = A['longitude'], A['latitude'], A['composite_uv_anomaly']
     fig = plt.figure(figsize=(11.6, 10.4))
     gs = fig.add_gridspec(4, 3, width_ratios=[1, 1, 0.035], height_ratios=[1, 1, 0.93, 0.05], left=0.06, right=0.93,
-                          bottom=0.05, top=0.985, hspace=0.16, wspace=0.07)
+                          bottom=0.05, top=0.985, hspace=0.075, wspace=0.035)
     for k in range(4):
         ax = fig.add_subplot(gs[k // 2, k % 2])
         im = ax.pcolormesh(np.r_[lon - 1.25, lon[-1] + 1.25], np.r_[lat - 1.25, lat[-1] + 1.25], comp[k, 0], cmap='RdBu_r',
@@ -154,22 +219,28 @@ def fig4():
         # Reference length (stated in the caption): 1 m s-1 spans 1.5 degrees of longitude.
         ax.quiver(lon[sl], lat[sl], comp[k, 0][sl, sl], comp[k, 1][sl, sl], scale=1 / 1.5, scale_units='x', width=0.0032, color='#1A1A1A', zorder=5)
         geo(ax, (100, 0, 180, 45), last=bool(k % 2)); letter(ax, 'abcd'[k])
-        if k % 2: ax.tick_params(axis='y', labelleft=False)
-        ax.tick_params(axis='x', labelbottom=False)
+        if k % 2:
+            ax.spines['right'].set_visible(True)
+            ax.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+        if k < 2: ax.spines['top'].set_visible(True)
+        ax.tick_params(axis='x', top=(k < 2), labeltop=(k < 2), bottom=False, labelbottom=False)
     fig.canvas.draw()
     top = fig.axes[1].get_position(); bot = fig.axes[3].get_position()
-    cb = fig.colorbar(im, cax=fig.add_axes([top.x1 + 0.012, bot.y0, 0.014, top.y1 - bot.y0]))
+    cb = fig.colorbar(im, cax=fig.add_axes([top.x1 + 0.013, bot.y0, 0.014, top.y1 - bot.y0]))
     cb.set_label('Zonal-wind anomaly (m s$^{-1}$)')
     axs = [fig.add_subplot(gs[2, 0]), fig.add_subplot(gs[2, 1])]; ms = []
     for ax, key, name, s in zip(axs, ['frequency_pp', 'within_pp'], ['Regime-frequency term', 'Within-regime term'], 'ef'):
         cmap, l = ('PuOr_r', lim / 20) if key == 'frequency_pp' else (TEAL_CORAL, lim)
         ms.append(ax.pcolormesh(b['lon_edges'], b['lat_edges'], b[key], cmap=cmap, vmin=-l, vmax=l, zorder=1))
         geo(ax, last=(s == 'f')); letter(ax, s)
-    axs[1].tick_params(axis='y', labelleft=False)
+        ax.set_yticks([0, 20, 40])
+    axs[1].spines['right'].set_visible(True)
+    axs[1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+    for ax in axs: ax.tick_params(axis='x', bottom=False, labelbottom=False)
     fig.canvas.draw()
     for ax, mm, ticks, lab in [(axs[0], ms[0], [-.03, 0, .03], 'Contribution (percentage points)'),
                                (axs[1], ms[1], [-.6, -.3, 0, .3, .6], 'Contribution (percentage points)')]:
-        p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.1 * p.width, p.y0 - 0.068, 0.8 * p.width, 0.014])
+        p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.1 * p.width, p.y0 - 0.035, 0.8 * p.width, 0.014])
         cb = fig.colorbar(mm, cax=cax, orientation='horizontal', label=lab); cb.set_ticks(ticks)
         n = 2 if abs(ticks[-1]) < .1 else 1
         cb.ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _, n=n: f'{v:.{n}f}'.replace('-', '\u2212')))
@@ -220,7 +291,7 @@ def fig5():
     from scipy.stats import gaussian_kde
     ev, first, ann = landfall_events(); ext = (100, 5, 145, 45); y = np.linspace(ext[1], ext[3], 801)
     fig = plt.figure(figsize=(9.6, 10.2))
-    gs = fig.add_gridspec(2, 2, width_ratios=[1, 0.62], left=0.08, right=0.97, bottom=0.075, top=0.985, hspace=0.07, wspace=0.035)
+    gs = fig.add_gridspec(2, 2, width_ratios=[1, 0.62], left=0.08, right=0.97, bottom=0.075, top=0.985, hspace=0.03, wspace=0.035)
     rng = np.random.default_rng(1996)
     from matplotlib.collections import LineCollection
     tr = pd.read_csv(PROJECT / 'data/raw/ibtracs_wp.csv', usecols=['SID', 'SEASON', 'ISO_TIME', 'LAT', 'LON', 'TRACK_TYPE'], skiprows=[1], low_memory=False)
@@ -231,8 +302,10 @@ def fig5():
         segs.append(g[['LON', 'LAT']].to_numpy()); cols.append(EARLY if g.SEASON.iloc[0] <= 1995 else LATE)
     order = rng.permutation(len(segs)); segs = [segs[k] for k in order]; cols = [cols[k] for k in order]
     print('landfalling storms with tracks:', len(segs))
+    panel_pairs = []
     for r, (x, d, name) in enumerate([(ev, 'all_events', 'All landfall events'), (first, 'first_landfall', 'First landfall')]):
         axm = fig.add_subplot(gs[r, 0]); axp = fig.add_subplot(gs[r, 1], sharey=axm)
+        panel_pairs.append((axm, axp))
         relief(axm, ext)
         axm.add_collection(LineCollection(segs, colors=cols, linewidths=0.5, alpha=0.10, zorder=4))
         if MODE == 'points':
@@ -261,17 +334,29 @@ def fig5():
         axp.fill_betweenx(y, e_, l_, where=l_ < e_, color=EARLY, alpha=0.45, lw=0, interpolate=True, zorder=2)
         axp.fill_betweenx(y, 0, np.minimum(e_, l_), color='0.88', lw=0, zorder=1)
         axp.plot(e_, y, color=EARLY, lw=1.6, zorder=3); axp.plot(l_, y, color=LATE, lw=1.6, zorder=3)
+        period_means = {}
         for p, c, yr in [('early', EARLY, (1966, 1995)), ('late', LATE, (1996, 2025))]:
             mu = np.mean([ann[ann.definition.eq(d) & ann.agency.eq(a) & ann.year.between(*yr)].mean_lat.mean() for a in AG4])
             axp.axhline(mu, color=c, ls='--', lw=1.2, zorder=4)
+            period_means[p] = mu
+        for period, colour, offset, align in [('early', EARLY, -3, 'top'), ('late', LATE, 3, 'bottom')]:
+            axp.annotate(f'{period_means[period]:.1f}°N', xy=(0.03, period_means[period]), xycoords=axp.get_yaxis_transform(),
+                         xytext=(0, offset), textcoords='offset points', ha='left', va=align, fontsize=8.5, color=colour, zorder=6)
         for v in (10, 20, 30, 40): axp.axhline(v, color='0.85', lw=0.6, zorder=0)
         axp.set_xlim(0, max(e_.max(), l_.max()) * 1.08); axp.tick_params(axis='y', labelleft=False)
         axp.spines[['top', 'right']].set_visible(False)
         axm.set_xticks([100, 110, 120, 130, 140]); axm.set_yticks([10, 20, 30, 40])
-        if r == 0: axm.tick_params(axis='x', labelbottom=False); axp.tick_params(axis='x', labelbottom=False)
-        else: axp.set_xlabel('Share of landfalls (% per degree latitude)')
+        if r == 0:
+            axm.spines['top'].set_visible(True)
+            axm.tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+            axp.tick_params(axis='x', labelbottom=False)
+        else: axp.set_xlabel('Share of landfalls\n(% per degree latitude)')
         letter(axm, 'ab'[r])   # map and latitude profile of one landfall definition form one panel
-    save(fig, 'Fig05_landfall_share_change_and_latitude_distribution', 5, 'Landfall locations and latitude distributions', 1.40)
+    fig.canvas.draw()
+    for axm, axp in panel_pairs:
+        map_pos, profile_pos = axm.get_position(), axp.get_position()
+        axp.set_position([map_pos.x1 + 0.015, profile_pos.y0, profile_pos.width, profile_pos.height])
+    save(fig, 'Fig05_landfall_share_change_and_latitude_distribution', 5, 'Landfall locations and latitude distributions', 1.70)
 
 
 def main():

@@ -1,11 +1,13 @@
 'Diagnostic figures for track counts, circulation and ocean exposure.'
 from __future__ import annotations
 
+from analysis.figures.figure_raster import render_png
 from core.paths import PROJECT as _LAYOUT_ROOT
 
 from core.paths import PROJECT,output_path
 
 import argparse
+from analysis.figures.si_page_type import fit_si_type
 from pathlib import Path
 
 import numpy as np
@@ -27,8 +29,8 @@ import geopandas as gpd
 from analysis.figures.shared_figure_style import LABELS as LABEL, PERIODS, geo_ticks
 
 EARLY,LATE=PERIODS['early'][0],PERIODS['late'][0]
-FIGURE_DIR=PROJECT/'figures'
-RESULT_DIR=PROJECT/'results/tracks'
+FIGURE_DIR=None
+RESULT_DIR=None
 
 _coast=None
 
@@ -36,11 +38,11 @@ _coast=None
 
 CANVASES={
 
-    'FigS14_absolute_passage_recurvature':(3184,1018),
+    'FigS14_absolute_passage_recurvature':(3184,1180),
 
-    'FigS15_bam_baseline_skill':(3632,1560),
+    'FigS15_bam_baseline_skill':(3632,1720),
 
-    'FigS16_steering_layer_regressions':(3332,2269),
+    'FigS16_steering_layer_regressions':(2380,2269),
 
     'FigS17_d26_parallel_exposure':(3334,1204),
 
@@ -82,17 +84,21 @@ def coast(ax,extent=(100,180,0,40)):
 
     geo_ticks(ax,list(range(int(extent[0]),int(extent[1])+1,20)),list(range(int(extent[2]),int(extent[3])+1,10)))
 
-def enlarge(fig,scale):
+def enlarge(fig,scale,extra_scale=1.10):
     # Larger lettering for figures reduced to page width.
     for t in fig.findobj(match=matplotlib.text.Text):
-        if t.get_visible() and t.get_fontsize()>0:t.set_fontsize(t.get_fontsize()*scale)
+        if t.get_visible() and t.get_fontsize()>0:t.set_fontsize(t.get_fontsize()*scale*extra_scale)
 
-def save(fig,name,output_dir=None):
+def save(fig,name,output_dir=None,trim=False):
+    if output_dir is None and FIGURE_DIR is None:raise ValueError('Provide an explicit output root')
     folder=Path(output_dir) if output_dir is not None else FIGURE_DIR
     png=folder/(name+'.png');pdf=folder/(name+'.pdf')
     if png.exists() or pdf.exists():raise FileExistsError(f'Refusing to overwrite existing figure: {name}')
-    fig.savefig(output_path(str(png)),dpi=300)
-    fig.savefig(output_path(str(pdf)),metadata={'Creator':'Matplotlib','Author':'Daizhao Huang; Yuanfu Yue'})
+    fit_si_type(fig, pad=0.08)
+    bounds={'bbox_inches':'tight','pad_inches':0.08}
+
+    fig.savefig(output_path(str(pdf)),metadata={'Creator':'Matplotlib','Author':'Daizhao Huang; Yuanfu Yue'},**bounds)
+    render_png(pdf)
     plt.close(fig);print('Figure',name,flush=True)
 
 def absolute():
@@ -117,15 +123,18 @@ def absolute():
 
         axs[2].bar(x+(k-.5)*.34,v,width=.32,color=c)
 
-    axs[2].set_xticks(x,[LABEL[k] for k in agencies]);axs[2].set_ylabel('Recurving storms per year');panel(axs[2],'c')
+    axs[2].set_xticks(x,[LABEL[k] for k in agencies]);axs[2].set_ylabel('Recurving storms\nper year');panel(axs[2],'c')
 
     for ax in axs:ax.set_ylim(top=ax.get_ylim()[1]*1.12)   # headroom for the panel letters
+
+    for ax in axs:
+        plt.setp(ax.get_xticklabels(),rotation=25,ha='right',rotation_mode='anchor')
 
     handles,labels=axs[0].get_legend_handles_labels()
 
     fig.legend(handles,labels,loc='outside lower center',ncol=2,frameon=False)
 
-    enlarge(fig,1.3);save(fig,'FigS14_absolute_passage_recurvature')
+    enlarge(fig,1.3,extra_scale=1.0);save(fig,'FigS14_absolute_passage_recurvature')
 
 def bam():
 
@@ -139,7 +148,7 @@ def bam():
 
     fig,axs=plt.subplots(2,3,figsize=canvas('FigS15_bam_baseline_skill'))
 
-    fig.subplots_adjust(left=.06,right=.985,bottom=.27,top=.97,wspace=.06,hspace=.20)
+    fig.subplots_adjust(left=.06,right=.985,bottom=.34,top=.97,wspace=.078,hspace=.065)
 
     for row,p in enumerate(['1966–1995','1996–2025']):
 
@@ -154,8 +163,15 @@ def bam():
                 im=axs[row,col].imshow(field*100,origin='lower',extent=[100,180,0,40],cmap='RdBu_r',vmin=-lim,vmax=lim,aspect='auto')
 
             coast(axs[row,col]);panel(axs[row,col],chr(97+row*3+col));axs[row,col].tick_params(labelbottom=row==1,labelleft=col==0)
+            if row==1:
+                plt.setp(axs[row,col].get_xticklabels(), rotation=35, ha='right', rotation_mode='anchor')
+            if col==0:
+                ylabels=axs[row,col].get_yticklabels()
+                if row==0: ylabels[0].set_va('bottom')
+                else: ylabels[-1].set_va('top')
 
 
+            if col==2: axs[row,col].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
             if col==1:dens=im
 
             if col==2:diff=im
@@ -163,9 +179,10 @@ def bam():
     # One colour bar for the density panels and one for the differences.
 
     fig.canvas.draw();p0,p1,p2=(axs[1,k].get_position() for k in range(3))
-    fig.colorbar(dens,cax=fig.add_axes([p0.x0,.10,p1.x1-p0.x0,.03]),orientation='horizontal',label='Relative track composition (%)')
+    dens_width=p1.x1-p0.x0
+    fig.colorbar(dens,cax=fig.add_axes([p0.x0+0.03*dens_width,.17,.94*dens_width,.03]),orientation='horizontal',label='Relative track composition (%)')
 
-    cb=fig.colorbar(diff,cax=fig.add_axes([p2.x0,.10,p2.width,.03]),orientation='horizontal',label='Difference (percentage points)');cb.set_ticks([-.5,0,.5])
+    cb=fig.colorbar(diff,cax=fig.add_axes([p2.x0+.04*p2.width,.17,.92*p2.width,.03]),orientation='horizontal',label='Difference\n(percentage points)');cb.set_ticks([-.5,0,.5])
 
     enlarge(fig,1.35);save(fig,'FigS15_bam_baseline_skill')
 
@@ -175,7 +192,7 @@ def steering(output_dir=None,reference_vector_degrees=9.0):
 
     fig,axs=plt.subplots(2,2,figsize=canvas('FigS16_steering_layer_regressions'))
 
-    fig.subplots_adjust(left=.07,right=.84,bottom=.065,top=.98,wspace=.17,hspace=.12)
+    fig.subplots_adjust(left=.085,right=.97,bottom=.22,top=.94,wspace=.025,hspace=.045)
 
     vmax=max(abs(a[f'{layer}_{scale}_z_eddy_beta']).max() for layer in ['300','500'] for scale in ['raw','detrended'])
 
@@ -190,12 +207,20 @@ def steering(output_dir=None,reference_vector_degrees=9.0):
             q=ax.quiver(X[::2,::2],Y[::2,::2],a[f'{layer}_{scale}_u_beta'][::2,::2],a[f'{layer}_{scale}_v_beta'][::2,::2],scale=1/reference_vector_degrees,scale_units='x',color='#202020',width=.0033)
 
             coast(ax,(80,180,0,65));panel(ax,chr(97+row*2+col))
+            if col==1: ax.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+            if row==0:
+                ax.tick_params(axis='x',top=True,labeltop=True,bottom=False,labelbottom=False)
+                if col==1: ax.get_xticklabels()[0].set_visible(False)
+            else: ax.tick_params(axis='x',bottom=True,labelbottom=False)
 
-    fig.colorbar(im,cax=fig.add_axes([.88,.15,.018,.70]),label='Regression (m per index SD)')
+    fig.canvas.draw()
+    p0=axs[1,0].get_position();p=axs[1,1].get_position()
+    fig.colorbar(im,cax=fig.add_axes([p0.x0,p.y0-.058,p.x1-p0.x0,.027]),orientation='horizontal',label='Regression (m per index SD)')
 
-    enlarge(fig,1.3);save(fig,'FigS16_steering_layer_regressions',output_dir=output_dir)
+    enlarge(fig,1.3);save(fig,'FigS16_steering_layer_regressions',output_dir=output_dir,trim=True)
 
 def evidence():
+    if RESULT_DIR is None:raise ValueError('Provide an explicit output root')
     target=RESULT_DIR/'absolute_track_point_change.npz'
     if target.exists():raise FileExistsError(f'Refusing to overwrite existing result: {target}')
     RESULT_DIR.mkdir(parents=True,exist_ok=True)
@@ -215,7 +240,7 @@ def d26():
 
     s=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/d26/d26_parallel_summary.csv');b=pd.read_csv(_LAYOUT_ROOT / 'results/ocean/d26/d26_parallel_bootstrap.csv')
 
-    terms=['delta_exposure','redistribution_component','ocean_component','covariability_component'];labels=['Net change','Path–season','Ocean field','Annual covariability']
+    terms=['delta_exposure','redistribution_component','ocean_component','covariability_component'];labels=['Net change','Path–season','Ocean field','Annual\ncovariability']
 
     fig,axs=plt.subplots(1,2,figsize=canvas('FigS17_d26_parallel_exposure'),constrained_layout=True)
 
@@ -231,8 +256,12 @@ def d26():
 
             ax.plot([l,h],[k,k],color='#365E8D',lw=1.4);ax.plot(value,k,'o',color='#365E8D')
 
-        ax.axvline(0,color='.5',lw=.7);ax.set_yticks(range(4),labels);ax.invert_yaxis();ax.set_xlabel(f'Change ({unit})');panel(ax,'ab'[0 if var=='D26' else 1])
+        ax.axvline(0,color='.5',lw=.7);ax.set_yticks(range(4),labels);ax.invert_yaxis();ax.set_xlabel(f'Change ({unit})')
+        if var=='D26': panel(ax,'a')
+        else: ax.text(.985,.98,'b',transform=ax.transAxes,ha='right',va='top',fontsize=12.5,fontweight='bold',zorder=12)
 
+    axs[1].yaxis.tick_right();axs[1].yaxis.set_label_position('right')
+    axs[1].spines['left'].set_visible(False);axs[1].spines['right'].set_visible(True)
     enlarge(fig,1.35);save(fig,'FigS17_d26_parallel_exposure')
 
 if __name__=='__main__':
@@ -245,18 +274,21 @@ if __name__=='__main__':
 
     sys.argv.remove('--execute')
 
-    parser=argparse.ArgumentParser();parser.add_argument('--only',choices=['all','d26','counts_and_circulation','s15','maps','si'],default='all');parser.add_argument('--output-root',type=Path);args=parser.parse_args()
-    if args.output_root is not None:
-        root=(PROJECT / args.output_root).resolve()
-        if not root.is_relative_to(PROJECT.resolve()):raise ValueError('Output root must remain within the project')
-        root.mkdir(parents=True,exist_ok=False)
-        FIGURE_DIR=root/'figures';RESULT_DIR=root/'tables'
+    parser=argparse.ArgumentParser();parser.add_argument('--only',choices=['all','d26','counts_and_circulation','s14','s15','s16','maps','si'],default='all');parser.add_argument('--output-root',required=True,type=Path);args=parser.parse_args()
+    root=(PROJECT / args.output_root).resolve()
+    if not root.is_relative_to(PROJECT.resolve()):raise ValueError('Output root must remain within the project')
+    root.mkdir(parents=True,exist_ok=False)
+    FIGURE_DIR=root/'figures';RESULT_DIR=root/'tables'
 
     if args.only=='counts_and_circulation':absolute();steering();evidence()
 
     if args.only=='all':absolute();bam();steering();evidence()
 
+    if args.only=='s14':absolute()
+
     if args.only=='s15':bam()
+
+    if args.only=='s16':steering()
 
     if args.only=='maps':bam();steering()
 

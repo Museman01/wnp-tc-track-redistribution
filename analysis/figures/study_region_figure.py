@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 
 import pymupdf
+from matplotlib.font_manager import FontProperties, findfont
 
 from PIL import Image
 
@@ -20,9 +21,7 @@ from core.paths import output_path
 
 SRC=_LAYOUT_ROOT / 'data/figure_inputs/study_region_reference.pdf'
 
-FONT=next((str(p) for p in [Path('C:/Windows/Fonts/arial.ttf'), Path('/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf')] if p.is_file()), None)
-
-if FONT is None: raise FileNotFoundError('Arial or Liberation Sans is required for the existing latitude labels')
+FONT = Path(findfont(FontProperties(family=['Arial', 'Liberation Sans']), fallback_to_default=False)).as_posix()
 
 LINE_COLOR=(0.2,0.2,0.2)
 
