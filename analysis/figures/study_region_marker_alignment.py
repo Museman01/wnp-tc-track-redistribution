@@ -73,6 +73,9 @@ def align(source: Path, output: Path):
     pdf = Path(str(output)+'.pdf')
     resize_terrain(pdf, (5000, 4593), 0.54, 1, jpeg_quality=93)
     render_png(pdf)
+    print('Centered marker digits:', ', '.join(sorted(changed)))
+    for c, x, y, dx, dy in chars:
+        print(f'{c}: text displacement ({dx:.3f}, {dy:.3f}) pt')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

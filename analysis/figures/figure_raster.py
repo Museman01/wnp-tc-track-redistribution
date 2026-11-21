@@ -46,3 +46,13 @@ def resize_terrain(pdf, size, scale, count, *, jpeg_quality=None):
         temporary.replace(pdf)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def apply_tnr(fig):
+    import matplotlib
+    from matplotlib.text import Text
+    matplotlib.rcParams.update({"font.family":"Times New Roman","font.sans-serif":["Times New Roman"],"mathtext.fontset":"custom","mathtext.rm":"Times New Roman","mathtext.it":"Times New Roman:italic","mathtext.bf":"Times New Roman:bold","mathtext.sf":"Times New Roman","mathtext.default":"regular"})
+    for text in fig.findobj(match=Text):
+        text.set_fontfamily("Times New Roman")
+        text.set_math_fontfamily("custom")
+        if text.get_fontsize() > 0:text.set_fontsize(text.get_fontsize()*0.9)

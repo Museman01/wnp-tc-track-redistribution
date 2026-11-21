@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from analysis.figures.si_page_type import fit_si_type
+from analysis.figures.figure_raster import apply_tnr
 
 from core.paths import PROJECT as _LAYOUT_ROOT
 
@@ -64,10 +65,13 @@ def main(stem):
     ax.set_xticks([100,120,140,160,180]);ax.set_yticks([0,10,20,30,40]);mf.format_geo_axes(ax);ax.tick_params(labelsize=9.4,width=0.8)
 
     for s in ['top','right']:ax.spines[s].set_visible(True)
+    ax.tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+    ax.spines['top'].set_color('0.15')
+    ax.spines['top'].set_zorder(20)
 
     ax.text(0.012,0.975,'a',transform=ax.transAxes,ha='left',va='top',fontsize=11.5,fontweight='bold',zorder=6)
 
-    cax=fig.add_axes([92.88/W,1-(mtop+mh+34)/H,(372.24-92.88)/W,10.8/H])
+    cax=fig.add_axes([92.88/W,1-(mtop+mh+20)/H,(372.24-92.88)/W,10.8/H])
 
     cb=fig.colorbar(m,cax=cax,orientation='horizontal');cb.set_label('Storms per cell',fontsize=10.8);cax.tick_params(labelsize=9.4)
 
@@ -92,6 +96,7 @@ def main(stem):
         if t.get_visible() and t.get_fontsize()>0: t.set_fontsize(t.get_fontsize()*1.10)
 
     fit_si_type(fig, pad=0.08)
+    apply_tnr(fig)
     fig.savefig(output_path(stem+'.png'),dpi=600,bbox_inches='tight',pad_inches=0.08)
 
     fig.savefig(output_path(stem+'.pdf'),bbox_inches='tight',pad_inches=0.08,metadata={'Creator':'Matplotlib'})

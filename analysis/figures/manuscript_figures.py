@@ -1,6 +1,6 @@
 """Render the five data figures used in the manuscript."""
 from __future__ import annotations
-from analysis.figures.figure_raster import render_png, resize_terrain
+from analysis.figures.figure_raster import render_png, resize_terrain, apply_tnr
 import sys
 from pathlib import Path
 import numpy as np, pandas as pd
@@ -59,6 +59,7 @@ def save(fig, stem, number, title, scale=1.0, dpi=300):
         if (OUT / (stem + ext)).exists(): raise FileExistsError(stem)
     scale_typography(fig, scale * 1.10)
     fit_manuscript_type(fig, number)
+    apply_tnr(fig)
     fig.savefig(OUT / f'{stem}.pdf', bbox_inches='tight',
                 metadata={'Title': title, 'Subject': f'Journal of Geophysical Research: Atmospheres Figure {number}', 'Creator': 'Matplotlib'})
     pdf = OUT / f'{stem}.pdf'
@@ -86,7 +87,13 @@ def fig1():
         d = idx[(idx.agency == a) & (idx.weighting == 'track_point')].sort_values('year')
         axb.plot(d.year, d.index_oos, lw=1.5 if a == 'PRIMARY' else 1.1, color=COLORS[a], label=DISPLAY[a], zorder=4 if a == 'PRIMARY' else 3)
     axb.plot(hi.year, hi.index_oos, lw=1.1, color=COLORS['HKO'], label='HKO')
-    axb.axhline(0, color='0.45', lw=0.7); axb.axvline(1995.5, color='0.55', ls='--', lw=0.8)
+    axb.axhline(0, color='0.45', lw=0.7)
+    # The divider falls between the last early year and the first late year.
+    late_start = 1996
+    period_boundary = late_start - 0.5
+    axb.axvline(period_boundary, ymin=0.06, color='0.55', ls='--', lw=0.8)
+    axb.text(period_boundary, 0, str(late_start), transform=axb.get_xaxis_transform(),
+             ha='center', va='center', color='0.22', clip_on=False)
     axb.set(xlabel='Year', ylabel='Leave-one-year-out\nredistribution index'); axb.legend(frameon=False, ncol=3, loc='upper left', bbox_to_anchor=(0.05, 1.0))
     axb.set_ylim(top=axb.get_ylim()[1] + 0.25 * np.ptp(axb.get_ylim()))
     open_panel_axis(axa); open_panel_axis(axb, right=True)
@@ -108,13 +115,19 @@ def fig1():
             ax.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
         if i < 2: ax.tick_params(axis='x', labelbottom=False)
     fig.canvas.draw()
-    for panel in (maps[1], maps[3]):
-        pos = panel.get_position()
-        panel.set_position([pos.x0 - 0.03, pos.y0, pos.width, pos.height])
-    fig.canvas.draw()
-    for series, panel in zip((axa, axb), maps[:2]):
-        pos, ref = series.get_position(), panel.get_position()
-        series.set_position([ref.x0, pos.y0, ref.width, pos.height])
+    # Use the same physical spacing between the two columns and between rows.
+    gap_inches = 0.185
+    x_gap = gap_inches / fig.get_figwidth()
+    y_gap = gap_inches / fig.get_figheight()
+    left_map = maps[0].get_position()
+    series = axa.get_position()
+    columns = (left_map.x0, left_map.x1 + x_gap)
+    for ax, x in zip((axa, axb), columns):
+        ax.set_position([x, series.y0, left_map.width, series.height])
+    for row in range(2):
+        y = series.y0 - (row + 1) * (left_map.height + y_gap)
+        for ax, x in zip(maps[2 * row:2 * row + 2], columns):
+            ax.set_position([x, y, left_map.width, left_map.height])
     for ax, s in zip([axa, axb] + maps, 'abcdef'): letter(ax, s)
     fig.canvas.draw()
     top = maps[1].get_position(); bot = maps[3].get_position()
@@ -134,11 +147,24 @@ def fig2():
         v = np.abs(arr[k]).max()
         ms.append(ax.pcolormesh(lo, la, arr[k], cmap=cmap, vmin=-v, vmax=v, shading='flat', zorder=1))
         geo(ax, last=(s == 'b')); letter(ax, s)
+    for ax in axs:
+        ax.spines['top'].set_visible(True)
+        ax.spines['bottom'].set_visible(False)
+        ax.tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
     axs[1].spines['right'].set_visible(True)
-    axs[1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+    axs[1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=True)
+    fig.canvas.draw()
+    left = axs[0].get_position()
+    right = axs[1].get_position()
+    axs[1].set_position([left.x1 + 0.185 / fig.get_figwidth(), right.y0, right.width, right.height])
     fig.canvas.draw()
     for ax, mm, lab in [(axs[0], ms[0], 'Contribution (percentage points per cell)'), (axs[1], ms[1], 'Contribution (percentage points per cell)')]:
-        p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.1 * p.width, p.y0 - 0.14, 0.8 * p.width, 0.035])
+        p = ax.get_position()
+        # Match Figure 3's visible panel-to-colorbar gap at manuscript width.
+        bar_height = 0.035
+        gap = 0.034
+        cax = fig.add_axes([p.x0 + 0.06 * p.width, p.y0 - gap - bar_height,
+                           0.88 * p.width, bar_height])
         cb = fig.colorbar(mm, cax=cax, orientation='horizontal', label=lab)
         cb.locator = MaxNLocator(nbins=5); cb.update_ticks()
         cb.ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f'{v:.2f}'.rstrip('0').rstrip('.').replace('-', '\u2212') if v else '0'))
@@ -176,24 +202,36 @@ def fig3():
         panel.text(0.015, 0.985, label, transform=panel.transAxes, va='top', ha='left', fontsize=12, fontweight='bold', zorder=12, bbox=dict(facecolor='#E6E4DF', edgecolor='none', pad=0.6))
     for a_ in (ax[0][1], c):
         a_.spines['right'].set_visible(True)
-        a_.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+        a_.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=True)
     ax[0][0].spines['top'].set_visible(True)
     ax[0][0].tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
     ax[0][1].spines['top'].set_visible(True)
     ax[0][1].tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
-    ax[0][1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+    for panel in ax[0]:
+        panel.spines['top'].set_color('0.15')
+        panel.spines['top'].set_linewidth(0.8)
+        panel.spines['top'].set_zorder(20)
+    ax[0][1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=True)
     for a_ in ax[1]:
         a_.tick_params(axis='x', bottom=False, labelbottom=False)
     c.spines['bottom'].set_visible(True)
-    c.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+    c.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=True)
     # Use the same 1.3:1 display frame for the four unchanged geographic domains.
     for a_ in (*ax[0], *ax[1]):
         a_.set_aspect((100 / 65) / 1.3, adjustable='box')
     fig.canvas.draw()
+    top_left = ax[0][0].get_position()
+    gap_inches = 0.1665
+    x_positions = (top_left.x0, top_left.x1 + gap_inches / fig.get_figwidth())
+    y_positions = (top_left.y0, top_left.y0 - top_left.height - gap_inches / fig.get_figheight())
+    for row in range(2):
+        for col in range(2):
+            ax[row][col].set_position([x_positions[col], y_positions[row], top_left.width, top_left.height])
+    fig.canvas.draw()
     for panel, mm, lab in [(d, m1, 'Regression (m per index SD)'),
                            (c, m2, 'Change (m)')]:
         pb = panel.get_position()
-        cax = fig.add_axes([pb.x0 + 0.03 * pb.width, pb.y0 - 0.037, 0.94 * pb.width, 0.018])
+        cax = fig.add_axes([pb.x0 + 0.03 * pb.width, pb.y0 - 0.030, 0.94 * pb.width, 0.018])
         cb = fig.colorbar(mm, cax=cax, orientation='horizontal', label=lab)
         if mm is m2:
             cb.set_ticks([-7.5, 0, 7.5])
@@ -224,10 +262,6 @@ def fig4():
             ax.tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
         if k < 2: ax.spines['top'].set_visible(True)
         ax.tick_params(axis='x', top=(k < 2), labeltop=(k < 2), bottom=False, labelbottom=False)
-    fig.canvas.draw()
-    top = fig.axes[1].get_position(); bot = fig.axes[3].get_position()
-    cb = fig.colorbar(im, cax=fig.add_axes([top.x1 + 0.013, bot.y0, 0.014, top.y1 - bot.y0]))
-    cb.set_label('Zonal-wind anomaly (m s$^{-1}$)')
     axs = [fig.add_subplot(gs[2, 0]), fig.add_subplot(gs[2, 1])]; ms = []
     for ax, key, name, s in zip(axs, ['frequency_pp', 'within_pp'], ['Regime-frequency term', 'Within-regime term'], 'ef'):
         cmap, l = ('PuOr_r', lim / 20) if key == 'frequency_pp' else (TEAL_CORAL, lim)
@@ -235,12 +269,28 @@ def fig4():
         geo(ax, last=(s == 'f')); letter(ax, s)
         ax.set_yticks([0, 20, 40])
     axs[1].spines['right'].set_visible(True)
-    axs[1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=False)
+    axs[1].tick_params(axis='y', left=False, right=True, labelleft=False, labelright=True)
     for ax in axs: ax.tick_params(axis='x', bottom=False, labelbottom=False)
     fig.canvas.draw()
+    panels = fig.axes[:4] + axs
+    origin = panels[0].get_position()
+    gap_inches = 0.26
+    x_positions = (origin.x0, origin.x1 + gap_inches / fig.get_figwidth())
+    previous_y = origin.y1
+    for row in range(3):
+        row_height = panels[2 * row].get_position().height
+        y = previous_y - row_height if row == 0 else previous_y - gap_inches / fig.get_figheight() - row_height
+        for col in range(2):
+            panels[2 * row + col].set_position([x_positions[col], y, origin.width, row_height])
+        previous_y = y
+    fig.canvas.draw()
+    top = panels[1].get_position()
+    bot = panels[3].get_position()
+    cb = fig.colorbar(im, cax=fig.add_axes([top.x1 + 0.013, bot.y0, 0.014, top.y1 - bot.y0]))
+    cb.set_label('Zonal-wind anomaly (m s$^{-1}$)')
     for ax, mm, ticks, lab in [(axs[0], ms[0], [-.03, 0, .03], 'Contribution (percentage points)'),
                                (axs[1], ms[1], [-.6, -.3, 0, .3, .6], 'Contribution (percentage points)')]:
-        p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.1 * p.width, p.y0 - 0.035, 0.8 * p.width, 0.014])
+        p = ax.get_position(); cax = fig.add_axes([p.x0 + 0.06 * p.width, p.y0 - 0.030, 0.88 * p.width, 0.014])
         cb = fig.colorbar(mm, cax=cax, orientation='horizontal', label=lab); cb.set_ticks(ticks)
         n = 2 if abs(ticks[-1]) < .1 else 1
         cb.ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _, n=n: f'{v:.{n}f}'.replace('-', '\u2212')))

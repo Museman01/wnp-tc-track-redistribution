@@ -1,7 +1,7 @@
 'Diagnostic figures for track counts, circulation and ocean exposure.'
 from __future__ import annotations
 
-from analysis.figures.figure_raster import render_png
+from analysis.figures.figure_raster import render_png, apply_tnr
 from core.paths import PROJECT as _LAYOUT_ROOT
 
 from core.paths import PROJECT,output_path
@@ -95,6 +95,7 @@ def save(fig,name,output_dir=None,trim=False):
     png=folder/(name+'.png');pdf=folder/(name+'.pdf')
     if png.exists() or pdf.exists():raise FileExistsError(f'Refusing to overwrite existing figure: {name}')
     fit_si_type(fig, pad=0.08)
+    apply_tnr(fig)
     bounds={'bbox_inches':'tight','pad_inches':0.08}
 
     fig.savefig(output_path(str(pdf)),metadata={'Creator':'Matplotlib','Author':'Daizhao Huang; Yuanfu Yue'},**bounds)
@@ -162,9 +163,13 @@ def bam():
 
                 im=axs[row,col].imshow(field*100,origin='lower',extent=[100,180,0,40],cmap='RdBu_r',vmin=-lim,vmax=lim,aspect='auto')
 
-            coast(axs[row,col]);panel(axs[row,col],chr(97+row*3+col));axs[row,col].tick_params(labelbottom=row==1,labelleft=col==0)
-            if row==1:
-                plt.setp(axs[row,col].get_xticklabels(), rotation=35, ha='right', rotation_mode='anchor')
+            coast(axs[row,col]);panel(axs[row,col],chr(97+row*3+col))
+            ax=axs[row,col]
+            ax.set_xticks([100,140,180]); ax.set_yticks([0,20,40])
+            ax.tick_params(axis='x', top=row==0, labeltop=row==0, bottom=False, labelbottom=False)
+            if row==0:
+                for label, alignment in zip(ax.get_xticklabels(), ['left','center','right']): label.set_ha(alignment)
+            ax.tick_params(axis='y', labelleft=col==0)
             if col==0:
                 ylabels=axs[row,col].get_yticklabels()
                 if row==0: ylabels[0].set_va('bottom')
@@ -178,11 +183,19 @@ def bam():
 
     # One colour bar for the density panels and one for the differences.
 
+    fig.canvas.draw()
+    top=axs[0,0].get_position(); bottom=axs[1,0].get_position()
+    gap=(top.y0-bottom.y1)*fig.get_figheight()/fig.get_figwidth()
+    left=top.x0; width=top.width
+    for row in range(2):
+        for col in range(3):
+            pos=axs[row,col].get_position()
+            axs[row,col].set_position([left+col*(width+gap),pos.y0,width,pos.height])
     fig.canvas.draw();p0,p1,p2=(axs[1,k].get_position() for k in range(3))
     dens_width=p1.x1-p0.x0
-    fig.colorbar(dens,cax=fig.add_axes([p0.x0+0.03*dens_width,.17,.94*dens_width,.03]),orientation='horizontal',label='Relative track composition (%)')
+    fig.colorbar(dens,cax=fig.add_axes([p0.x0+0.03*dens_width,.26,.94*dens_width,.03]),orientation='horizontal',label='Relative track composition (%)')
 
-    cb=fig.colorbar(diff,cax=fig.add_axes([p2.x0+.04*p2.width,.17,.92*p2.width,.03]),orientation='horizontal',label='Difference\n(percentage points)');cb.set_ticks([-.5,0,.5])
+    cb=fig.colorbar(diff,cax=fig.add_axes([p2.x0+.04*p2.width,.26,.92*p2.width,.03]),orientation='horizontal',label='Difference\n(percentage points)');cb.set_ticks([-.5,0,.5])
 
     enlarge(fig,1.35);save(fig,'FigS15_bam_baseline_skill')
 
@@ -213,6 +226,12 @@ def steering(output_dir=None,reference_vector_degrees=9.0):
                 if col==1: ax.get_xticklabels()[0].set_visible(False)
             else: ax.tick_params(axis='x',bottom=True,labelbottom=False)
 
+    fig.canvas.draw()
+    top=axs[0,0].get_position(); bottom=axs[1,0].get_position()
+    gap=(top.y0-bottom.y1)*fig.get_figheight()/fig.get_figwidth()
+    for row in range(2):
+        pos=axs[row,1].get_position()
+        axs[row,1].set_position([top.x1+gap,pos.y0,pos.width,pos.height])
     fig.canvas.draw()
     p0=axs[1,0].get_position();p=axs[1,1].get_position()
     fig.colorbar(im,cax=fig.add_axes([p0.x0,p.y0-.058,p.x1-p0.x0,.027]),orientation='horizontal',label='Regression (m per index SD)')
@@ -257,6 +276,7 @@ def d26():
             ax.plot([l,h],[k,k],color='#365E8D',lw=1.4);ax.plot(value,k,'o',color='#365E8D')
 
         ax.axvline(0,color='.5',lw=.7);ax.set_yticks(range(4),labels);ax.invert_yaxis();ax.set_xlabel(f'Change ({unit})')
+        ax.set_xticks([-5,-2.5,0,2.5,5,7.5] if var=='D26' else [-1,-.5,0,.5])
         if var=='D26': panel(ax,'a')
         else: ax.text(.985,.98,'b',transform=ax.transAxes,ha='right',va='top',fontsize=12.5,fontweight='bold',zorder=12)
 

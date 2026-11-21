@@ -1,7 +1,7 @@
 """Render Figure 6, the pathway-change schematic."""
 from __future__ import annotations
 
-from analysis.figures.figure_raster import render_png, resize_terrain
+from analysis.figures.figure_raster import render_png, resize_terrain, apply_tnr
 import argparse
 from pathlib import Path
 
@@ -96,6 +96,10 @@ def draw(out):
     ax.set_xlim(*EXTENT[:2]);ax.set_ylim(*EXTENT[2:])
     ax.set_xticks([110,130,150,170]);ax.set_yticks([0,10,20,30,40,50])
     mf.format_geo_axes(ax);ax.tick_params(labelsize=13.3,width=0.8,length=2.4)
+    ax.tick_params(axis='x', top=True, labeltop=True, bottom=False, labelbottom=False)
+    ax.spines['top'].set_visible(True)
+    ax.spines['top'].set_color('0.15')
+    ax.spines['top'].set_zorder(20)
     for s in ax.spines.values():s.set_linewidth(0.7)
     lon=lambda x:100+(x-26.3)/4.054;lat=lambda y:(249.1-y)/4.862   # reference PDF points to degrees
     halo=[pe.withStroke(linewidth=2.6,foreground='white',alpha=0.85)]
@@ -114,7 +118,7 @@ def draw(out):
     ax.text(lon(50.0),lat(123.0),'in landfall',color=LANDFALL,ha='left',va='center',**t)
     ax.text(lon(50.0),lat(138.5),'latitude',color=LANDFALL,ha='left',va='center',**t)
     cbar_width=0.76*MAP_W
-    cax=fig.add_axes([fx(26.3+(MAP_W-cbar_width)/2),fy(4.0+MAP_H+40.0),cbar_width/W,9.5/H])
+    cax=fig.add_axes([fx(26.3+(MAP_W-cbar_width)/2),fy(4.0+MAP_H+40.0),cbar_width/W,14.25/H])
     cb=fig.colorbar(m,cax=cax,orientation='horizontal',extend='both',ticks=[-2,-1,0,1,2])
     cb.solids.set_alpha(ALPHA);cb.outline.set_linewidth(0.5)
     cax.tick_params(labelsize=13.3,length=1.8,width=0.5,pad=1.2)
@@ -222,6 +226,7 @@ def draw(out):
 
     stem=str(output)
 
+    apply_tnr(fig)
     fig.savefig(output_path(stem+'.pdf'),bbox_inches='tight',pad_inches=0.02,metadata=meta,dpi=600)
     pdf = output.with_suffix('.pdf')
     resize_terrain(pdf, (4777, 4218), 0.34, 1)

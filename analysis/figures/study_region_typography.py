@@ -38,6 +38,7 @@ def main(source, output):
     doc.update_stream(xref,data)
     doc.save(str(OUT)+'.pdf',garbage=3,deflate=True)
     rendered=pymupdf.open(str(OUT)+'.pdf');pix=rendered[0].get_pixmap(dpi=600);pix.save(str(OUT)+'.png')
+    print('Enlarged five ocean labels and the existing text; plot geometry was preserved.')
 if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser()

@@ -1,6 +1,6 @@
 # Western North Pacific tropical cyclone track redistribution
 
-Software version: **2.1.0a**.
+Software version: **2.1.1b**.
 
 Analysis code and supporting data for *Life-Cycle Redistribution of Western
 North Pacific Tropical Cyclone Tracks and a Poleward Shift in Landfall Latitude:

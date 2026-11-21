@@ -1,15 +1,54 @@
-from analysis.figures.figure_raster import render_png
-from pathlib import Path
-import pymupdf
-from analysis.figures import retained_text
-import argparse
+"""Enlarge individually positioned PDF text while scaling its character spacing."""
+from __future__ import annotations
+import re
 
-def run(source,output):
- d=pymupdf.open(source);retained_text.enlarge(d,factor=1.42,extra_multiline_gap=6)
- output=Path(output)
- if any(Path(str(output)+e).exists() for e in ['.pdf','.png']):raise FileExistsError(output)
- output.parent.mkdir(parents=True,exist_ok=True);d.save(str(output)+'.pdf',garbage=3,deflate=True)
- render_png(str(output)+'.pdf')
+PAT = re.compile(rb"q ([^qQ]*?)BT/(Retained\d+) ([\d.]+) Tf ([-\d.]+) ([-\d.]+) TD\[(.*?)\]TJ ET Q")
 
-if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--input',required=True);p.add_argument('--output',required=True);a=p.parse_args();run(a.input,a.output)
+def enlarge(doc, factor=1.10, extra_multiline_gap=0, preserve_marker_digits=False, right_axis_shift=0):
+    page=doc[0]; chars=[]
+    for block in page.get_text('rawdict')['blocks']:
+        for line in block.get('lines', []):
+            entries=[c for span in line['spans'] for c in span['chars']]
+            if not entries: continue
+            dx,dy=line['dir']; projected=[c['origin'][0]*dx+c['origin'][1]*dy for c in entries]
+            center=(min(projected)+max(projected))/2
+            text=''.join(c['c'] for c in entries)
+            gap=extra_multiline_gap if text.startswith('vs') else 0
+            shift=right_axis_shift if abs(dx)<0.01 and line['bbox'][0]>page.rect.width*0.8 and len(text)>4 else 0
+            local_factor = (1.22 if line['bbox'][1] > 250 else 1.20 if abs(dy) < .01 and not text in ('a','b','c') else 1.30 if abs(dx) < .01 else factor)
+            for c,projection in zip(entries,projected):
+                x,y=c['origin']; delta=(local_factor-1)*(projection-center)
+                chars.append((x,y,x+delta*dx+shift,y+delta*dy+gap,local_factor))
+    xref=page.get_contents()[0]; data=doc.xref_stream(xref); found=0
+    def change(m):
+        nonlocal found
+        prefix,font,size,lx,ly,body=m.groups(); x,y=float(lx),float(ly); rotated=b'0 1 -1 0 0 0 cm' in prefix
+        px,py=(-y,page.rect.height-x) if rotated else (x,page.rect.height-y)
+        near=min(chars,key=lambda t:(t[0]-px)**2+(t[1]-py)**2)
+        if (near[0]-px)**2+(near[1]-py)**2 > .01: raise ValueError('Unmapped PDF glyph')
+        nx,ny=near[2],near[3]
+        ax,ay=(page.rect.height-ny,-nx) if rotated else (nx,page.rect.height-ny)
+        size=float(size)*near[4]; found+=1
+        return b'q '+prefix+b'BT/'+font+f' {size:.5f} Tf {ax:.6f} {ay:.6f} TD['.encode()+body+b']TJ ET Q'
+    data=PAT.sub(change,data)
+    if found!=len(chars):raise ValueError(f'PDF glyph count differs: {found} vs {len(chars)}')
+    doc.update_stream(xref,data)
+    return found
+
+
+if __name__ == "__main__":
+    import pymupdf
+    from pathlib import Path
+    from analysis.figures.figure_raster import render_png
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--input",required=True,type=Path)
+    parser.add_argument("--output",required=True,type=Path)
+    args=parser.parse_args()
+    doc=pymupdf.open(args.input)
+    enlarge(doc, factor=1.42, extra_multiline_gap=4)
+    out=Path(str(args.output)+".pdf")
+    out.parent.mkdir(parents=True,exist_ok=True)
+    if out.exists() or out.with_suffix(".png").exists(): raise FileExistsError(out)
+    doc.save(out,garbage=3,deflate=True)
+    render_png(out)

@@ -1,6 +1,6 @@
 """Redraw Figure S9 at 70% height from the existing annual series and trend table."""
 from __future__ import annotations
-from analysis.figures.figure_raster import render_png
+from analysis.figures.figure_raster import render_png, apply_tnr
 from analysis.figures.si_page_type import fit_si_type
 import argparse
 from pathlib import Path
@@ -21,11 +21,11 @@ def render(stem):
     trends=pd.read_csv(PROJECT/'data/reference/environment_validation/circulation_metric_validation/results/wnpsh_metric_trends.csv')
     plt.rcParams.update({'font.family':'sans-serif','font.sans-serif':[mf.FONT,'DejaVu Sans'],'pdf.fonttype':42})
     fig,axes=plt.subplots(2,2,figsize=(694.7995/72,349.9148/72),sharex=True)
-    fig.subplots_adjust(left=.1077,right=.9193,bottom=.038,top=.845,wspace=.08,hspace=.17)
-    cols=[('wpsh_area','WNPSH area\n($10^6$ km²)',np.arange(0,18,2.5)),
-          ('wpsh_intensity','WNPSH\nintensity',np.arange(0,41,5)),
-          ('ridge_line','Ridge latitude (°N)',np.arange(21,28,1)),
-          ('west_ridge_point','Western ridge\npoint (°E)',np.arange(110,161,10))]
+    fig.subplots_adjust(left=.1077,right=.9193,bottom=.038,top=.845,wspace=.08,hspace=.34)
+    cols=[('wpsh_area','WNPSH area\n($10^6$ km²)',np.arange(0,18,5)),
+          ('wpsh_intensity','WNPSH\nintensity',np.arange(0,41,10)),
+          ('ridge_line','Ridge latitude (°N)',np.arange(21,28,2)),
+          ('west_ridge_point','Western ridge\npoint (°E)',np.arange(110,161,20))]
     years=np.arange(1970,2030,10)
     for i,(ax,(column,label,ticks)) in enumerate(zip(axes.flat,cols)):
         old=annual[annual.season<1982]; modern=annual[annual.season>=1982]
@@ -42,7 +42,12 @@ def render(stem):
         ax.set_xlim(1960,2025);ax.set_xticks(years);ax.set_yticks(ticks)
         ax.set_ylabel(label,fontsize=12.65,labelpad=4)
         ax.tick_params(axis='both',labelsize=12.65,width=.8,length=3.5,pad=2)
-        ax.text(.015,.985,'abcd'[i],transform=ax.transAxes,va='top',ha='left',fontsize=12.65,fontweight='bold',zorder=8)
+        if i % 2:
+            low, high = ax.get_ylim()
+            ax.set_ylim(low, high + 0.18 * (high - low))
+        ax.text(.985 if i % 2 else .015, .985, 'abcd'[i], transform=ax.transAxes,
+                va='top', ha='right' if i % 2 else 'left', fontsize=12.65,
+                fontweight='bold', zorder=8)
         ax.spines['top'].set_visible(i<2)
         ax.spines['bottom'].set_visible(i>=2)
         if i%2:
@@ -57,6 +62,13 @@ def render(stem):
             ax.tick_params(axis='x',top=False,labeltop=False,bottom=True,labelbottom=False)
     stem.parent.mkdir(parents=True,exist_ok=True)
     fit_si_type(fig)
+    from matplotlib.transforms import blended_transform_factory
+    fig.canvas.draw()
+    for column in range(2):
+        upper, lower = axes[0, column], axes[1, column]
+        middle = (upper.get_position().y0 + lower.get_position().y1) / 2
+        upper.text(1982, middle, '1982', transform=blended_transform_factory(upper.transData, fig.transFigure), ha='center', va='center', fontsize=16, clip_on=False)
+    apply_tnr(fig)
     fig.savefig(str(stem)+'.pdf',bbox_inches='tight')
     render_png(str(stem)+'.pdf')
     plt.close(fig)

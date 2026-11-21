@@ -148,17 +148,24 @@ python -B -m analysis figures --execute 1 2 3 4 5 --output-dir analysis_output/f
 python -B -m analysis.figures.synthesis_figure --execute --output analysis_output/Fig06_outlook_schematic
 ```
 
-Figures S1, S5 and S11 are drawn from the supplied vector inputs in
-`source/figure_templates/`. The S1 input supplies the study-region geography
-and map labels, S5 the basin activity time series, and S11 the ocean heat
-content contributions. For S1, draw the labels before aligning the markers.
-For the S5 year labels, the renderer uses Arial or Liberation Sans.
+Figures S1, S5 and S11 use the vector inputs in source/figure_templates/.
+Figure S1 uses the study-region geography and map labels, S5 the basin
+activity series, and S11 the ocean heat content contributions. The
+following commands for these vector figures use the standard Windows
+installations of Arial and Times New Roman. Times New Roman is also used
+in the distributed map and time-series figures.
 
 ```bash
-python -B -m analysis.figures.study_region_typography --input source/figure_templates/FigS01_study_region.pdf --output analysis_output/FigS01_labels
-python -B -m analysis.figures.study_region_marker_alignment --input analysis_output/FigS01_labels.pdf --output analysis_output/FigS01_study_region
-python -B -m analysis.figures.shared_time_axis --input source/figure_templates/FigS05_activity_timeseries.pdf --output analysis_output/FigS05_activity_timeseries
-python -B -m analysis.figures.font_scale_pdf --input source/figure_templates/FigS11_ohc_latitude_contributions.pdf --output analysis_output/FigS11_ohc_latitude_contributions
+python -B -m analysis.figures.study_region_typography --input source/figure_templates/FigS01_study_region.pdf --output analysis_output/S1_labels
+python -B -m analysis.figures.study_region_marker_alignment --input analysis_output/S1_labels.pdf --output analysis_output/S1_markers
+python -B -m analysis.figures.study_region_names strip --input analysis_output/S1_markers.pdf --output analysis_output/S1_without_names.pdf
+python -B -m analysis.figures.study_region_axis_scale --input analysis_output/S1_without_names.pdf --output analysis_output/S1_axes
+python -B -m analysis.figures.pdf_typography --input analysis_output/S1_axes.pdf --output analysis_output/S1_type
+python -B -m analysis.figures.study_region_names names --input analysis_output/S1_type.pdf --bounds analysis_output/sea_name_bounds.txt --output analysis_output/FigS01_study_region.pdf
+python -B -m analysis.figures.shared_time_axis --input source/figure_templates/FigS05_activity_timeseries.pdf --output analysis_output/S5_layout
+python -B -m analysis.figures.pdf_typography --input analysis_output/S5_layout.pdf --output analysis_output/FigS05_activity_timeseries
+python -B -m analysis.figures.font_scale_pdf --input source/figure_templates/FigS11_ohc_latitude_contributions.pdf --output analysis_output/S11_layout
+python -B -m analysis.figures.pdf_typography --input analysis_output/S11_layout.pdf --output analysis_output/FigS11_ohc_latitude_contributions
 ```
 
 The following first command draws Figures S2, S3, S4, S7, S8, S10, S12 and S13
